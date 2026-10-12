@@ -5,13 +5,14 @@ const dw=detail.querySelector('.dwrap'),RAF=window.requestAnimationFrame,raf0=f=
 let held=null;
 function freeze(){if(held)return;held=[];window.requestAnimationFrame=cb=>{held.push(cb);return 0};stage.style.pointerEvents='none'}
 function thaw(){if(!held)return;window.requestAnimationFrame=RAF;const h=held;held=null;stage.style.pointerEvents='';h.forEach(cb=>RAF.call(window,cb))}
-const cap={scene:null,cam:null,obj:null,on:false,p:0,swx:0,swr:0,wpp:1};let T3=null;
-function pose(){const o=cap.obj,c=cap.cam;if(!o||!c||cap.p<=.0001)return;cap.qT.setFromAxisAngle(cap.yAx,cap.swr*Math.PI/180);o.quaternion.copy(cap.q0).slerp(cap.qT,cap.p);o.position.copy(cap.o0);o.position.x+=cap.swx*cap.wpp*cap.p;c.position.lerpVectors(cap.c0,cap.cF,cap.p);c.lookAt(cap.tg)}
-import('three').then(m=>{T3=m;const O=m.Object3D.prototype,U=O.updateMatrixWorld;O.updateMatrixWorld=function(f){if(this.isScene){cap.scene=this;if(cap.on)try{pose()}catch(_){}}else if(this.isCamera&&!cap.cam)cap.cam=this;return U.call(this,f)}}).catch(()=>{});
+const cap={scene:null,cam:null,obj:null,on:false,p:0,tk:0,swx:0,swr:0,wpp:1};let T3=null;
+function pose(){const o=cap.obj,c=cap.cam;if(!o||!c||!cap.q0||cap.p<=.0001)return;cap.qT.setFromAxisAngle(cap.yAx,cap.swr*Math.PI/180);o.quaternion.copy(cap.q0).slerp(cap.qT,cap.p);o.position.x=cap.o0.x+cap.swx*cap.wpp*cap.p;o.position.y=cap.o0.y*(1-cap.p);c.position.lerpVectors(cap.c0,cap.cF,cap.p);c.lookAt(cap.tg)}
+function restore(){const o=cap.obj;if(o&&cap.q0){o.quaternion.copy(cap.q0);o.position.x=cap.o0.x;if(cap.cam&&cap.c0)cap.cam.position.copy(cap.c0)}}
+import('three').then(m=>{T3=m;const O=m.Object3D.prototype,U=O.updateMatrixWorld;O.updateMatrixWorld=function(f){if(this.isScene){cap.scene=this;if(cap.on)try{pose()}catch(_){}}else if(this.isCamera)cap.cam=this;return U.call(this,f)}}).catch(()=>{});
 function locate(){const s=cap.scene;if(!s||!cap.cam)return false;let tex=null,any=null;s.traverse(o=>{if(!o.isMesh)return;any=any||o;const m=Array.isArray(o.material)?o.material:[o.material];if(!tex&&m.some(x=>x&&x.map))tex=o});let o=tex||any;if(!o)return false;while(o.parent&&o.parent!==s)o=o.parent;cap.obj=o;return true}
-function snap(){const o=cap.obj,c=cap.cam;cap.q0=o.quaternion.clone();cap.qT=o.quaternion.clone();cap.o0=o.position.clone();cap.c0=c.position.clone();cap.tg=o.position.clone();cap.yAx=new o.position.constructor(0,1,0);const d0=cap.c0.distanceTo(cap.tg)||5;let d=null;if(T3&&c.isPerspectiveCamera){const q=o.quaternion.clone();o.quaternion.identity();o.updateMatrixWorld(true);const b=new T3.Box3().setFromObject(o),sz=b.getSize(new T3.Vector3());o.quaternion.copy(q);o.updateMatrixWorld(true);const half=Math.max(sz.y/2,sz.x/2/(c.aspect||1)),t=Math.tan(c.fov*Math.PI/360);d=half/t/.82+sz.z/2}d=Math.min(d0*1.5,Math.max(d0*.55,d||d0));cap.cF=cap.tg.clone();cap.cF.z+=d;cap.wpp=c.isPerspectiveCamera?2*d*Math.tan(c.fov*Math.PI/360)/(stage.getBoundingClientRect().height||440):1}
-function tween(to,ms){return new Promise(res=>{const from=cap.p,t0=performance.now(),st=()=>{const k=Math.min(1,(performance.now()-t0)/ms),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;cap.p=from+(to-from)*e;if(k<1)raf0(st);else res()};st()})}
-const release=()=>{if(cap.p<=.001){cap.on=false;stage.style.pointerEvents=''}};
+function snap(){const o=cap.obj,c=cap.cam;cap.q0=o.quaternion.clone();cap.qT=o.quaternion.clone();cap.o0=o.position.clone();cap.c0=c.position.clone();cap.tg=o.position.clone().set(0,0,0);cap.yAx=new o.position.constructor(0,1,0);const d0=cap.c0.distanceTo(cap.tg)||5.6;let d=null;if(T3&&c.isPerspectiveCamera){const q=o.quaternion.clone();o.quaternion.identity();o.updateMatrixWorld(true);const b=new T3.Box3().setFromObject(o),sz=b.getSize(new T3.Vector3());o.quaternion.copy(q);o.updateMatrixWorld(true);const half=Math.max(sz.y/2,sz.x/2/(c.aspect||1)),t=Math.tan(c.fov*Math.PI/360);d=half/t/.82+sz.z/2}d=Math.min(d0*1.5,Math.max(d0*.55,d||d0));cap.cF=cap.tg.clone();cap.cF.z+=d;cap.wpp=c.isPerspectiveCamera?2*d*Math.tan(c.fov*Math.PI/360)/(stage.getBoundingClientRect().height||440):1}
+function tween(to,ms){const tk=++cap.tk;return new Promise(res=>{const from=cap.p,t0=performance.now(),st=()=>{if(tk!==cap.tk){res();return}const k=Math.min(1,(performance.now()-t0)/ms),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;cap.p=from+(to-from)*e;if(k<1)raf0(st);else res()};st()})}
+const release=()=>{if(cap.p<=.001){cap.p=0;restore();cap.on=false;stage.style.pointerEvents=''}};
 function drive(a,tbl){return new Promise(res=>{const step=()=>{if(a.playState==='finished'||a.playState==='idle'){cap.swx=0;cap.swr=0;res();return}const k=Math.min(1,(a.currentTime||0)/a.effect.getTiming().duration);let i=1;while(i<tbl.length-1&&tbl[i][0]<k)i++;const A=tbl[i-1],B=tbl[i],u=(k-A[0])/(B[0]-A[0]||1),e=u*u*(3-2*u);cap.swx=A[1]+(B[1]-A[1])*e;cap.swr=A[2]+(B[2]-A[2])*e;raf0(step)};raf0(step)})}
 const SWIN=[[0,0,0],[.12,-16,-12],[.22,-30,-18],[.32,-30,-18],[.45,-10,-6],[.58,18,10],[.72,-6,-9],[.85,8,-3],[1,0,0]],SWOUT=[[0,0,0],[.3,10,8],[.5,-10,-9],[.66,-28,-18],[.8,-30,-18],[.9,-8,-6],[1,0,0]];
 let DB={};
@@ -75,7 +76,7 @@ let url=null,ac=null;await Promise.all([preview(e).then(u=>{url=u}).catch(()=>{}
 if(!cur)return;
 if(!url){quick();pv.dataset.fb='1';pv.click();delete pv.dataset.fb;return}
 setAc(ac);pa.src=url;
-let ok=false;try{ok=await grab();if(ok){snap();stage.style.pointerEvents='none';cap.on=true;await tween(1,700)}}catch(_){ok=false;cap.on=false;cap.p=0}
+let ok=false;try{ok=await grab();if(ok){cap.p=0;snap();stage.style.pointerEvents='none';cap.on=true;await tween(1,700)}}catch(_){ok=false;cap.on=false;cap.p=0}
 if(!ok)freeze();
 if(!cur)return;
 const s=rel(stage),t=rel(SL);cd=makeCd(e,s);
@@ -88,6 +89,7 @@ P.classList.add('in');P.scrollIntoView({behavior:'smooth',block:'center'});busy=
 async function exit(){
 if(busy||!cur)return;busy=true;pa.pause();cancelAnimationFrame(raf);run(false);const e=cur;
 P.classList.remove('in');P.classList.add('leaving');
+cap.tk++;if(cap.on){cap.p=0;restore();cap.on=false}
 let ok=false;try{ok=await grab();if(ok){snap();stage.style.pointerEvents='none';cap.on=true;await tween(1,700)}}catch(_){ok=false;cap.on=false;cap.p=0}
 if(!ok)freeze();
 if(!cur)return;
@@ -97,7 +99,7 @@ const a=el.animate([{transform:tf(dx,dy,82,.8),opacity:0,offset:0},{transform:tf
 await Promise.all([a.finished.catch(()=>{}),follow(el,a),ok?drive(a,SWOUT):0]);
 if(ok)await tween(0,700);
 quick();detail.scrollTo({top:0,behavior:'smooth'})}
-function quick(){thaw();pa.pause();cancelAnimationFrame(raf);if(cd){cd.remove();cd=null}cap.on=false;cap.p=0;cap.swx=0;cap.swr=0;stage.style.pointerEvents='';P.classList.remove('on','in','run','leaving');cur=null;busy=false}
+function quick(){thaw();pa.pause();cancelAnimationFrame(raf);if(cd){cd.remove();cd=null}cap.tk++;cap.p=0;restore();cap.on=false;cap.swx=0;cap.swr=0;stage.style.pointerEvents='';P.classList.remove('on','in','run','leaving');cur=null;busy=false}
 detail.addEventListener('click',ev=>{const b=ev.target.closest&&ev.target.closest('#pv');if(!b||b.dataset.fb)return;const e=find();if(!e)return;ev.preventDefault();ev.stopImmediatePropagation();if(cur){B1.click();return}start(e)},true);
 back.addEventListener('click',()=>{if(cur)quick()});
 new MutationObserver(()=>{if(!detail.classList.contains('open')&&cur)quick()}).observe(detail,{attributes:true,attributeFilter:['class']});
