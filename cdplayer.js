@@ -5,6 +5,15 @@ const dw=detail.querySelector('.dwrap'),RAF=window.requestAnimationFrame,raf0=f=
 let held=null;
 function freeze(){if(held)return;held=[];window.requestAnimationFrame=cb=>{held.push(cb);return 0};stage.style.pointerEvents='none'}
 function thaw(){if(!held)return;window.requestAnimationFrame=RAF;const h=held;held=null;stage.style.pointerEvents='';h.forEach(cb=>RAF.call(window,cb))}
+const cap={scene:null,cam:null,obj:null,on:false,p:0,swx:0,swr:0,wpp:1};let T3=null;
+function pose(){const o=cap.obj,c=cap.cam;if(!o||!c||cap.p<=.0001)return;cap.qT.setFromAxisAngle(cap.yAx,cap.swr*Math.PI/180);o.quaternion.copy(cap.q0).slerp(cap.qT,cap.p);o.position.copy(cap.o0);o.position.x+=cap.swx*cap.wpp*cap.p;c.position.lerpVectors(cap.c0,cap.cF,cap.p);c.lookAt(cap.tg)}
+import('three').then(m=>{T3=m;const O=m.Object3D.prototype,U=O.updateMatrixWorld;O.updateMatrixWorld=function(f){if(this.isScene){cap.scene=this;if(cap.on)try{pose()}catch(_){}}else if(this.isCamera&&!cap.cam)cap.cam=this;return U.call(this,f)}}).catch(()=>{});
+function locate(){const s=cap.scene;if(!s||!cap.cam)return false;let tex=null,any=null;s.traverse(o=>{if(!o.isMesh)return;any=any||o;const m=Array.isArray(o.material)?o.material:[o.material];if(!tex&&m.some(x=>x&&x.map))tex=o});let o=tex||any;if(!o)return false;while(o.parent&&o.parent!==s)o=o.parent;cap.obj=o;return true}
+function snap(){const o=cap.obj,c=cap.cam;cap.q0=o.quaternion.clone();cap.qT=o.quaternion.clone();cap.o0=o.position.clone();cap.c0=c.position.clone();cap.tg=o.position.clone();cap.yAx=new o.position.constructor(0,1,0);const d0=cap.c0.distanceTo(cap.tg)||5;let d=null;if(T3&&c.isPerspectiveCamera){const q=o.quaternion.clone();o.quaternion.identity();o.updateMatrixWorld(true);const b=new T3.Box3().setFromObject(o),sz=b.getSize(new T3.Vector3());o.quaternion.copy(q);o.updateMatrixWorld(true);const half=Math.max(sz.y/2,sz.x/2/(c.aspect||1)),t=Math.tan(c.fov*Math.PI/360);d=half/t/.82+sz.z/2}d=Math.min(d0*1.5,Math.max(d0*.55,d||d0));cap.cF=cap.tg.clone();cap.cF.z+=d;cap.wpp=c.isPerspectiveCamera?2*d*Math.tan(c.fov*Math.PI/360)/(stage.getBoundingClientRect().height||440):1}
+function tween(to,ms){return new Promise(res=>{const from=cap.p,t0=performance.now(),st=()=>{const k=Math.min(1,(performance.now()-t0)/ms),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;cap.p=from+(to-from)*e;if(k<1)raf0(st);else res()};st()})}
+const release=()=>{if(cap.p<=.001){cap.on=false;stage.style.pointerEvents=''}};
+function drive(a,tbl){return new Promise(res=>{const step=()=>{if(a.playState==='finished'||a.playState==='idle'){cap.swx=0;cap.swr=0;res();return}const k=Math.min(1,(a.currentTime||0)/a.effect.getTiming().duration);let i=1;while(i<tbl.length-1&&tbl[i][0]<k)i++;const A=tbl[i-1],B=tbl[i],u=(k-A[0])/(B[0]-A[0]||1),e=u*u*(3-2*u);cap.swx=A[1]+(B[1]-A[1])*e;cap.swr=A[2]+(B[2]-A[2])*e;raf0(step)};raf0(step)})}
+const SWIN=[[0,0,0],[.12,-16,-12],[.22,-30,-18],[.32,-30,-18],[.45,-10,-6],[.58,18,10],[.72,-6,-9],[.85,8,-3],[1,0,0]],SWOUT=[[0,0,0],[.3,10,8],[.5,-10,-9],[.66,-28,-18],[.8,-30,-18],[.9,-8,-6],[1,0,0]];
 let DB={};
 fetch('letras-sync.json',{cache:'no-store'}).then(r=>r.ok?r.json():{}).then(d=>{DB=d||{}}).catch(()=>{});
 const find=()=>{const t=norm(dt.textContent);for(const k in DB){const e=DB[k];if(e&&e.lines&&e.lines.length&&norm(e.title)===t){e.slug=k;return e}}return null};
@@ -12,9 +21,6 @@ const css=document.createElement('style');
 css.textContent=`.dwrap{position:relative}.stage{z-index:2}
 .cdf{position:absolute;z-index:1;border-radius:50%;pointer-events:none;background-size:cover;background-position:center;-webkit-mask:radial-gradient(circle,transparent 9%,#000 9.6%);mask:radial-gradient(circle,transparent 9%,#000 9.6%);filter:drop-shadow(0 14px 18px rgba(0,0,0,.35))}
 .cdf::after{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 20deg,rgba(255,255,255,.45),transparent 25%,rgba(255,255,255,.3) 50%,transparent 75%,rgba(255,255,255,.45))}
-.cdcase{position:absolute;z-index:3;border-radius:24px;background-size:cover;background-position:center;pointer-events:none;opacity:0;box-shadow:0 34px 70px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.25) inset}
-.cdcase::before{content:'';position:absolute;left:0;top:0;bottom:0;width:8%;border-radius:24px 0 0 24px;background:linear-gradient(90deg,rgba(0,0,0,.4),transparent)}
-.cdcase::after{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(115deg,rgba(255,255,255,.38),transparent 30%,transparent 68%,rgba(0,0,0,.22))}
 .cdp{--h:150;--s:90%;--ac:hsl(var(--h) var(--s) 66%);--ac2:hsl(var(--h) var(--s) 42%);--acd:hsl(var(--h) 45% 8%);--acd2:hsl(var(--h) 45% 3%);display:none;flex-direction:column;align-items:center;gap:18px;width:min(560px,100%);margin-top:40px}.cdp.on{display:flex;animation:up .6s both cubic-bezier(.2,.8,.2,1)}
 .cdp-dev{position:relative;width:100%;display:grid;grid-template-columns:1fr 112px;align-items:center;gap:20px;padding:46px 26px 24px;border-radius:30px;background:linear-gradient(160deg,#fafafc,#d3d4dc);border:1px solid rgba(255,255,255,.7);box-shadow:0 30px 70px rgba(0,0,0,.22),0 2px 0 rgba(255,255,255,.9) inset,0 -12px 24px rgba(0,0,0,.06) inset;transition:box-shadow .6s}
 html[data-theme='dark'] .cdp-dev{background:linear-gradient(160deg,#3a3a41,#131316);border-color:rgba(255,255,255,.08);box-shadow:0 30px 70px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.1) inset,0 -12px 24px rgba(0,0,0,.35) inset}
@@ -44,7 +50,7 @@ P.innerHTML=`<div class='cdp-dev'><div class='cdp-slot'></div><div class='cdp-lc
 dw.appendChild(P);
 const q=s=>P.querySelector(s),T=q('.cdp-t'),D=q('.cdp-d'),BAR=q('.cdp-bar i'),TI=q('.cdp-ti'),L=q('.cdp-lyr'),SL=q('.cdp-slot'),DISC=q('.cdp-disc'),B1=q('.cdp-pp'),B2=q('.cdp-x'),A=q('.cdp-a');
 const pa=new Audio();pa.preload='auto';
-let cur=null,raf=0,busy=false,cd=null,kc=null,sa=null,idx=-1,els=[];
+let cur=null,raf=0,busy=false,cd=null,idx=-1,els=[];
 function jsonp(url){return new Promise((res,rej)=>{const cb='_cb'+Math.random().toString(36).slice(2),s=document.createElement('script'),to=setTimeout(()=>{end();rej()},8000);function end(){clearTimeout(to);delete window[cb];s.remove()}window[cb]=d=>{end();res(d)};s.onerror=()=>{end();rej()};s.src=url+'&callback='+cb;document.head.appendChild(s)})}
 async function preview(e){for(const c of ['us','es','ng','zm','mx']){try{const d=await jsonp('https://itunes.apple.com/lookup?id='+e.appleId+'&country='+c),r=(d.results||[]).find(x=>x.previewUrl);if(r)return r.previewUrl}catch(_){}}return e.previewUrl||null}
 function accent(src){return new Promise(res=>{const im=new Image();im.onload=()=>{try{const c=document.createElement('canvas');c.width=c.height=24;const x=c.getContext('2d');x.drawImage(im,0,0,24,24);const d=x.getImageData(0,0,24,24).data;let sx=0,sy=0,W=0,S=0;for(let i=0;i<d.length;i+=4){const r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),df=mx-mn,s=mx?df/mx:0;if(mx<.15||!df)continue;let h=mx===r?((g-b)/df)%6:mx===g?(b-r)/df+2:(r-g)/df+4;h*=60*Math.PI/180;const w=s*s*mx+.001;sx+=Math.cos(h)*w;sy+=Math.sin(h)*w;S+=s*w;W+=w}if(W<.8||S/W<.14){res({h:0,s:0});return}let h=Math.atan2(sy,sx)*180/Math.PI;if(h<0)h+=360;res({h:Math.round(h),s:Math.round(Math.min(90,Math.max(45,S/W*100)))})}catch(_){res(null)}};im.onerror=()=>res(null);im.src=src})}
@@ -52,10 +58,6 @@ function setAc(c){c=c||{h:150,s:90};P.style.setProperty('--h',c.h);P.style.setPr
 const rel=el=>{const a=el.getBoundingClientRect(),b=dw.getBoundingClientRect();return{x:a.left-b.left+a.width/2,y:a.top-b.top+a.height/2,w:a.width,h:a.height}};
 const coverOf=e=>e.cover||'assets/covers/'+e.slug+'.jpg';
 function makeCd(e,s){const W=Math.min(s.w,s.h)*.6,d=document.createElement('div');d.className='cdf';d.style.cssText=`width:${W}px;height:${W}px;left:${s.x-W/2}px;top:${s.y-W/2}px;background-image:url("${coverOf(e)}")`;dw.appendChild(d);return d}
-function makeCase(e,s){const d=document.createElement('div');d.className='cdcase';d.style.cssText=`width:${s.w}px;height:${s.h}px;left:${s.x-s.w/2}px;top:${s.y-s.h/2}px;background-image:url("${coverOf(e)}")`;dw.appendChild(d);return d}
-const ps=(x,r,k=1)=>`perspective(900px) translateX(${x}px) rotateY(${r}deg) scale(${k})`,XF=800,XE='cubic-bezier(.45,0,.2,1)';
-async function showCase(){if(!kc)return;sa=stage.animate([{transform:ps(0,0,1),opacity:1},{transform:ps(0,-14,1),opacity:0}],{duration:XF,easing:XE,fill:'forwards'});await Promise.all([sa.finished.catch(()=>{}),kc.animate([{opacity:0,transform:ps(0,10,.95)},{opacity:1,transform:ps(0,-14,1)}],{duration:XF,easing:XE,fill:'forwards'}).finished.catch(()=>{})])}
-async function hideCase(){if(!kc)return;const k=kc;kc=null;if(sa){sa.cancel();sa=null}const s2=stage.animate([{transform:ps(0,-14,1),opacity:0},{transform:ps(0,0,1),opacity:1}],{duration:XF,easing:XE});await Promise.all([s2.finished.catch(()=>{}),k.animate([{opacity:1,transform:ps(0,-14,1)},{opacity:0,transform:ps(0,10,.95)}],{duration:XF,easing:XE,fill:'forwards'}).finished.catch(()=>{})]);k.remove()}
 function setLines(e){L.innerHTML='';els=e.lines.map(l=>{const d=document.createElement('div');d.className='l';d.textContent=l.text;L.appendChild(d);return d});idx=-1;DISC.style.backgroundImage='url("'+coverOf(e)+'")';TI.textContent=e.title+' · Keiri Blest';A.href='https://music.apple.com/song/'+e.appleId}
 function show(n){idx=n;els.forEach((d,i)=>{d.classList.toggle('s',i<=n);d.classList.toggle('c',i===n)});L.scrollTop=L.scrollHeight}
 function tick(){const c=pa.currentTime,du=pa.duration||30;T.textContent=fmt(c);D.textContent=fmt(du);BAR.style.width=Math.min(100,c/du*100)+'%';let n=-1;for(let i=0;i<cur.lines.length;i++)if(cur.lines[i].t<=c+.05)n=i;if(n!==idx)show(n);raf=raf0(tick)}
@@ -66,32 +68,36 @@ B1.addEventListener('click',()=>{if(!cur||busy)return;if(pa.ended||B1.textConten
 B2.addEventListener('click',()=>exit());
 function follow(el,anim){return new Promise(res=>{const step=()=>{if(anim.playState==='finished'||anim.playState==='idle'){res();return}const a=el.getBoundingClientRect(),b=detail.getBoundingClientRect();detail.scrollTop+=((a.top+a.height/2)-(b.top+b.height/2))*.14;raf0(step)};raf0(step)})}
 const tf=(x,y,r,k)=>`translate(${x}px,${y}px) perspective(600px) rotateX(${r}deg) scale(${k})`;
-const sw=(o,x,r)=>({transform:ps(x,r),opacity:1,offset:o});
+async function grab(){cap.obj=null;for(let i=0;i<20;i++){if(locate())return true;await new Promise(r=>setTimeout(r,30))}return false}
 async function start(e){
 if(busy)return;busy=true;cur=e;au.pause();setLines(e);T.textContent='0:00';BAR.style.width='0';B1.textContent='Pausar';P.classList.add('on');
 let url=null,ac=null;await Promise.all([preview(e).then(u=>{url=u}).catch(()=>{}),accent(coverOf(e)).then(c=>{ac=c})]);
 if(!cur)return;
 if(!url){quick();pv.dataset.fb='1';pv.click();delete pv.dataset.fb;return}
 setAc(ac);pa.src=url;
-const s=rel(stage),t=rel(SL);kc=makeCase(e,s);await showCase();if(!cur)return;
-cd=makeCd(e,s);
+let ok=false;try{ok=await grab();if(ok){snap();stage.style.pointerEvents='none';cap.on=true;await tween(1,700)}}catch(_){ok=false;cap.on=false;cap.p=0}
+if(!ok)freeze();
+if(!cur)return;
+const s=rel(stage),t=rel(SL);cd=makeCd(e,s);
 const dx=t.x-s.x,dy=t.y-s.y,sx=s.w*.55,el=cd;
-freeze();
 const a=el.animate([{transform:tf(0,0,0,.9),opacity:0,offset:0},{transform:tf(sx,0,0,.95),opacity:1,offset:.22},{transform:tf(sx,0,0,.95),opacity:1,offset:.32},{transform:tf(dx,dy-40,0,.8),opacity:1,offset:.72},{transform:tf(dx,dy,82,.8),opacity:1,offset:.92},{transform:tf(dx,dy,82,.8),opacity:0,offset:1}],{duration:2800,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'});
-kc.animate([sw(0,0,-14),sw(.12,-16,-26),sw(.22,-30,-30),sw(.32,-30,-30),sw(.45,-10,-8),sw(.58,18,12),sw(.72,-6,-12),sw(.85,8,-4),sw(1,0,-14)],{duration:2800,easing:'ease-in-out',fill:'forwards'});
-await Promise.all([a.finished.catch(()=>{}),follow(el,a)]);
-thaw();if(!cur)return;el.remove();cd=null;hideCase();P.classList.add('in');P.scrollIntoView({behavior:'smooth',block:'center'});busy=false;pa.currentTime=0;play()}
+await Promise.all([a.finished.catch(()=>{}),follow(el,a),ok?drive(a,SWIN):0]);
+if(!cur)return;el.remove();cd=null;
+if(ok)tween(0,700).then(release);else thaw();
+P.classList.add('in');P.scrollIntoView({behavior:'smooth',block:'center'});busy=false;pa.currentTime=0;play()}
 async function exit(){
 if(busy||!cur)return;busy=true;pa.pause();cancelAnimationFrame(raf);run(false);const e=cur;
-const s=rel(stage),t=rel(SL);kc=makeCase(e,s);P.classList.remove('in');P.classList.add('leaving');
-await showCase();if(!cur)return;cd=makeCd(e,s);
+P.classList.remove('in');P.classList.add('leaving');
+let ok=false;try{ok=await grab();if(ok){snap();stage.style.pointerEvents='none';cap.on=true;await tween(1,700)}}catch(_){ok=false;cap.on=false;cap.p=0}
+if(!ok)freeze();
+if(!cur)return;
+const s=rel(stage),t=rel(SL);cd=makeCd(e,s);
 const dx=t.x-s.x,dy=t.y-s.y,sx=s.w*.55,el=cd;
-freeze();
 const a=el.animate([{transform:tf(dx,dy,82,.8),opacity:0,offset:0},{transform:tf(dx,dy,82,.8),opacity:1,offset:.1},{transform:tf(dx,dy-40,0,.8),opacity:1,offset:.32},{transform:tf(sx,0,0,.95),opacity:1,offset:.72},{transform:tf(sx,0,0,.95),opacity:1,offset:.8},{transform:tf(0,0,0,.9),opacity:0,offset:1}],{duration:2600,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'});
-kc.animate([sw(0,0,-14),sw(.3,10,10),sw(.5,-10,-12),sw(.66,-28,-28),sw(.8,-30,-30),sw(.9,-8,-16),sw(1,0,-14)],{duration:2600,easing:'ease-in-out',fill:'forwards'});
-await Promise.all([a.finished.catch(()=>{}),follow(el,a)]);
-thaw();await hideCase();quick();detail.scrollTo({top:0,behavior:'smooth'})}
-function quick(){thaw();pa.pause();cancelAnimationFrame(raf);if(cd){cd.remove();cd=null}if(kc){kc.remove();kc=null}if(sa){sa.cancel();sa=null}P.classList.remove('on','in','run','leaving');cur=null;busy=false}
+await Promise.all([a.finished.catch(()=>{}),follow(el,a),ok?drive(a,SWOUT):0]);
+if(ok)await tween(0,700);
+quick();detail.scrollTo({top:0,behavior:'smooth'})}
+function quick(){thaw();pa.pause();cancelAnimationFrame(raf);if(cd){cd.remove();cd=null}cap.on=false;cap.p=0;cap.swx=0;cap.swr=0;stage.style.pointerEvents='';P.classList.remove('on','in','run','leaving');cur=null;busy=false}
 detail.addEventListener('click',ev=>{const b=ev.target.closest&&ev.target.closest('#pv');if(!b||b.dataset.fb)return;const e=find();if(!e)return;ev.preventDefault();ev.stopImmediatePropagation();if(cur){B1.click();return}start(e)},true);
 back.addEventListener('click',()=>{if(cur)quick()});
 new MutationObserver(()=>{if(!detail.classList.contains('open')&&cur)quick()}).observe(detail,{attributes:true,attributeFilter:['class']});
