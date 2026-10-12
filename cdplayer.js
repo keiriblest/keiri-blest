@@ -44,7 +44,7 @@ P.innerHTML=`<div class='cdp-dev'><div class='cdp-slot'></div><div class='cdp-lc
 dw.appendChild(P);
 const q=s=>P.querySelector(s),T=q('.cdp-t'),D=q('.cdp-d'),BAR=q('.cdp-bar i'),TI=q('.cdp-ti'),L=q('.cdp-lyr'),SL=q('.cdp-slot'),DISC=q('.cdp-disc'),B1=q('.cdp-pp'),B2=q('.cdp-x'),A=q('.cdp-a');
 const pa=new Audio();pa.preload='auto';
-let cur=null,raf=0,busy=false,cd=null,kc=null,idx=-1,els=[];
+let cur=null,raf=0,busy=false,cd=null,kc=null,sa=null,idx=-1,els=[];
 function jsonp(url){return new Promise((res,rej)=>{const cb='_cb'+Math.random().toString(36).slice(2),s=document.createElement('script'),to=setTimeout(()=>{end();rej()},8000);function end(){clearTimeout(to);delete window[cb];s.remove()}window[cb]=d=>{end();res(d)};s.onerror=()=>{end();rej()};s.src=url+'&callback='+cb;document.head.appendChild(s)})}
 async function preview(e){for(const c of ['us','es','ng','zm','mx']){try{const d=await jsonp('https://itunes.apple.com/lookup?id='+e.appleId+'&country='+c),r=(d.results||[]).find(x=>x.previewUrl);if(r)return r.previewUrl}catch(_){}}return e.previewUrl||null}
 function accent(src){return new Promise(res=>{const im=new Image();im.onload=()=>{try{const c=document.createElement('canvas');c.width=c.height=24;const x=c.getContext('2d');x.drawImage(im,0,0,24,24);const d=x.getImageData(0,0,24,24).data;let sx=0,sy=0,W=0,S=0;for(let i=0;i<d.length;i+=4){const r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),df=mx-mn,s=mx?df/mx:0;if(mx<.15||!df)continue;let h=mx===r?((g-b)/df)%6:mx===g?(b-r)/df+2:(r-g)/df+4;h*=60*Math.PI/180;const w=s*s*mx+.001;sx+=Math.cos(h)*w;sy+=Math.sin(h)*w;S+=s*w;W+=w}if(W<.8||S/W<.14){res({h:0,s:0});return}let h=Math.atan2(sy,sx)*180/Math.PI;if(h<0)h+=360;res({h:Math.round(h),s:Math.round(Math.min(90,Math.max(45,S/W*100)))})}catch(_){res(null)}};im.onerror=()=>res(null);im.src=src})}
@@ -53,9 +53,9 @@ const rel=el=>{const a=el.getBoundingClientRect(),b=dw.getBoundingClientRect();r
 const coverOf=e=>e.cover||'assets/covers/'+e.slug+'.jpg';
 function makeCd(e,s){const W=Math.min(s.w,s.h)*.6,d=document.createElement('div');d.className='cdf';d.style.cssText=`width:${W}px;height:${W}px;left:${s.x-W/2}px;top:${s.y-W/2}px;background-image:url("${coverOf(e)}")`;dw.appendChild(d);return d}
 function makeCase(e,s){const d=document.createElement('div');d.className='cdcase';d.style.cssText=`width:${s.w}px;height:${s.h}px;left:${s.x-s.w/2}px;top:${s.y-s.h/2}px;background-image:url("${coverOf(e)}")`;dw.appendChild(d);return d}
-const ps=(x,r)=>`perspective(900px) translateX(${x}px) rotateY(${r}deg)`;
-async function showCase(){if(!kc)return;stage.style.transition='none';await kc.animate([{opacity:0,transform:ps(0,-14)},{opacity:1,transform:ps(0,-14)}],{duration:450,fill:'forwards',easing:'ease-out'}).finished.catch(()=>{});stage.style.opacity='0'}
-async function hideCase(){if(!kc)return;stage.style.opacity='';const k=kc;kc=null;await k.animate([{opacity:1},{opacity:0}],{duration:450,fill:'forwards'}).finished.catch(()=>{});k.remove()}
+const ps=(x,r,k=1)=>`perspective(900px) translateX(${x}px) rotateY(${r}deg) scale(${k})`,XF=800,XE='cubic-bezier(.45,0,.2,1)';
+async function showCase(){if(!kc)return;sa=stage.animate([{transform:ps(0,0,1),opacity:1},{transform:ps(0,-14,1),opacity:0}],{duration:XF,easing:XE,fill:'forwards'});await Promise.all([sa.finished.catch(()=>{}),kc.animate([{opacity:0,transform:ps(0,10,.95)},{opacity:1,transform:ps(0,-14,1)}],{duration:XF,easing:XE,fill:'forwards'}).finished.catch(()=>{})])}
+async function hideCase(){if(!kc)return;const k=kc;kc=null;if(sa){sa.cancel();sa=null}const s2=stage.animate([{transform:ps(0,-14,1),opacity:0},{transform:ps(0,0,1),opacity:1}],{duration:XF,easing:XE});await Promise.all([s2.finished.catch(()=>{}),k.animate([{opacity:1,transform:ps(0,-14,1)},{opacity:0,transform:ps(0,10,.95)}],{duration:XF,easing:XE,fill:'forwards'}).finished.catch(()=>{})]);k.remove()}
 function setLines(e){L.innerHTML='';els=e.lines.map(l=>{const d=document.createElement('div');d.className='l';d.textContent=l.text;L.appendChild(d);return d});idx=-1;DISC.style.backgroundImage='url("'+coverOf(e)+'")';TI.textContent=e.title+' · Keiri Blest';A.href='https://music.apple.com/song/'+e.appleId}
 function show(n){idx=n;els.forEach((d,i)=>{d.classList.toggle('s',i<=n);d.classList.toggle('c',i===n)});L.scrollTop=L.scrollHeight}
 function tick(){const c=pa.currentTime,du=pa.duration||30;T.textContent=fmt(c);D.textContent=fmt(du);BAR.style.width=Math.min(100,c/du*100)+'%';let n=-1;for(let i=0;i<cur.lines.length;i++)if(cur.lines[i].t<=c+.05)n=i;if(n!==idx)show(n);raf=raf0(tick)}
@@ -91,7 +91,7 @@ const a=el.animate([{transform:tf(dx,dy,82,.8),opacity:0,offset:0},{transform:tf
 kc.animate([sw(0,0,-14),sw(.3,10,10),sw(.5,-10,-12),sw(.66,-28,-28),sw(.8,-30,-30),sw(.9,-8,-16),sw(1,0,-14)],{duration:2600,easing:'ease-in-out',fill:'forwards'});
 await Promise.all([a.finished.catch(()=>{}),follow(el,a)]);
 thaw();await hideCase();quick();detail.scrollTo({top:0,behavior:'smooth'})}
-function quick(){thaw();pa.pause();cancelAnimationFrame(raf);if(cd){cd.remove();cd=null}if(kc){kc.remove();kc=null}stage.style.opacity='';stage.style.transition='';P.classList.remove('on','in','run','leaving');cur=null;busy=false}
+function quick(){thaw();pa.pause();cancelAnimationFrame(raf);if(cd){cd.remove();cd=null}if(kc){kc.remove();kc=null}if(sa){sa.cancel();sa=null}P.classList.remove('on','in','run','leaving');cur=null;busy=false}
 detail.addEventListener('click',ev=>{const b=ev.target.closest&&ev.target.closest('#pv');if(!b||b.dataset.fb)return;const e=find();if(!e)return;ev.preventDefault();ev.stopImmediatePropagation();if(cur){B1.click();return}start(e)},true);
 back.addEventListener('click',()=>{if(cur)quick()});
 new MutationObserver(()=>{if(!detail.classList.contains('open')&&cur)quick()}).observe(detail,{attributes:true,attributeFilter:['class']});
