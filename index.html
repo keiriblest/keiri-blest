@@ -4,94 +4,89 @@ const host=$('stage');
 renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.1;
+renderer.toneMappingExposure=1.25;
 host.appendChild(renderer.domElement);
 
 const scene=new THREE.Scene();
 scene.environment=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(),.04).texture;
 
-const cam=new THREE.PerspectiveCamera(35,1,.1,50);
+const cam=new THREE.PerspectiveCamera(34,1,.1,50);
 cam.position.set(0,0,5.8);
 
-scene.add(new THREE.AmbientLight(0xffffff,.9));
-const d1=new THREE.DirectionalLight(0xffffff,1.8);
-d1.position.set(3,4,4);
+scene.add(new THREE.AmbientLight(0xffffff,1.1));
+const d1=new THREE.DirectionalLight(0xffffff,2.2);
+d1.position.set(3.5,4.5,4.5);
 scene.add(d1);
-const d2=new THREE.DirectionalLight(0xffffff,.8);
-d2.position.set(-3,-2,2);
+const d2=new THREE.DirectionalLight(0xffffff,1.2);
+d2.position.set(-3.5,-2,2.5);
 scene.add(d2);
 
-// Materiales Acrílico Transparente Jewel Case
-const glassMat=new THREE.MeshPhysicalMaterial({
+// Materiales de Cristal Acrílico Completamente Transparente con Brillo y Refracción
+const crystalClearMat=new THREE.MeshPhysicalMaterial({
+  color:0xffffff,
+  metalness:0.0,
+  roughness:0.02,
+  transmission:0.98,
+  thickness:0.25,
+  ior:1.52,
+  specularIntensity:1.0,
+  specularColor:0xffffff,
+  transparent:true,
+  opacity:1.0,
+  depthWrite:false
+});
+
+const clearTrayMat=new THREE.MeshPhysicalMaterial({
   color:0xffffff,
   metalness:0.02,
-  roughness:0.08,
-  transmission:0.94,
+  roughness:0.04,
+  transmission:0.96,
   thickness:0.18,
   ior:1.52,
   specularIntensity:1.0,
   specularColor:0xffffff,
   transparent:true,
-  opacity:1.0
+  opacity:1.0,
+  depthWrite:false
 });
 
-const trayMat=new THREE.MeshPhysicalMaterial({
-  color:0x111113,
-  metalness:0.1,
-  roughness:0.25,
-  transmission:0.75,
-  thickness:0.12,
-  ior:1.48,
-  transparent:true,
-  opacity:0.95
-});
-
-const discHoleMat=new THREE.MeshPhysicalMaterial({
+const clearHubMat=new THREE.MeshPhysicalMaterial({
   color:0xffffff,
   metalness:0.05,
-  roughness:0.1,
+  roughness:0.06,
   transmission:0.92,
-  thickness:0.08,
-  transparent:true
+  thickness:0.12,
+  ior:1.52,
+  transparent:true,
+  opacity:1.0,
+  depthWrite:false
 });
 
 const discArtMat=new THREE.MeshStandardMaterial({
   map:canvasTex(r),
-  roughness:0.25,
-  metalness:0.45,
-  envMapIntensity:1.2
-});
-
-const backInlayMat=new THREE.MeshStandardMaterial({
-  map:canvasTex(r),
-  roughness:0.4,
-  envMapIntensity:0.3
+  roughness:0.2,
+  metalness:0.5,
+  envMapIntensity:1.4
 });
 
 // Raíz de la caja completa
 const caseGroup=new THREE.Group();
 
-// 1. Bandeja Trasera (Base)
+// 1. Bandeja Trasera (Base acrílica transparente)
 const backGeo=new RoundedBoxGeometry(2.5,2.5,0.08,3,0.06);
-const backMesh=new THREE.Mesh(backGeo,glassMat);
+const backMesh=new THREE.Mesh(backGeo,crystalClearMat);
 backMesh.position.z=-0.04;
 caseGroup.add(backMesh);
 
-// Inlay / Carátula trasera interior
-const inlayGeo=new THREE.PlaneGeometry(2.36,2.36);
-const inlayMesh=new THREE.Mesh(inlayGeo,backInlayMat);
-inlayMesh.position.z=-0.001;
-caseGroup.add(inlayMesh);
-
-// Tray central interior con relieve para el CD
-const trayGeo=new RoundedBoxGeometry(2.38,2.38,0.03,2,0.04);
-const trayMesh=new THREE.Mesh(trayGeo,trayMat);
+// Bandeja central interior totalmente transparente con soporte circular para el CD
+const trayGeo=new RoundedBoxGeometry(2.38,2.38,0.04,2,0.04);
+const trayMesh=new THREE.Mesh(trayGeo,clearTrayMat);
 trayMesh.position.z=0.015;
 caseGroup.add(trayMesh);
 
-// Hub central (anillo de sujeción)
+// Hub central transparente (dientes y anillo de sujeción)
 const hubGeo=new THREE.CylinderGeometry(0.24,0.24,0.06,32);
-const hubMesh=new THREE.Mesh(hubGeo,trayMat);
+const hubMesh=new THREE.Mesh(hubGeo,clearHubMat);
 hubMesh.rotation.x=Math.PI/2;
 hubMesh.position.z=0.04;
 caseGroup.add(hubMesh);
@@ -103,7 +98,7 @@ const cdInnerGeo=new THREE.CylinderGeometry(0.22,0.22,0.025,32);
 const cdMesh=new THREE.Mesh(cdOuterGeo,[discArtMat,discArtMat,discArtMat]);
 cdMesh.rotation.x=Math.PI/2;
 
-const cdCenterRing=new THREE.Mesh(cdInnerGeo,discHoleMat);
+const cdCenterRing=new THREE.Mesh(cdInnerGeo,crystalClearMat);
 cdCenterRing.rotation.x=Math.PI/2;
 
 cdGroup.add(cdMesh,cdCenterRing);
@@ -111,20 +106,19 @@ cdGroup.position.set(0,0,0.04);
 caseGroup.add(cdGroup);
 
 // 3. Tapa Delantera Transparente (Hinged Lid)
-// Pivote en el borde izquierdo (-1.25 en X)
 const lidPivot=new THREE.Group();
 lidPivot.position.set(-1.25,0,0.06);
 
 const lidGeo=new RoundedBoxGeometry(2.5,2.5,0.06,3,0.06);
-const lidMesh=new THREE.Mesh(lidGeo,glassMat);
-lidMesh.position.set(1.25,0,0); // Desplazado respecto al pivote
+const lidMesh=new THREE.Mesh(lidGeo,crystalClearMat);
+lidMesh.position.set(1.25,0,0);
 lidPivot.add(lidMesh);
 
-// Bisagras laterales decorativas
+// Bisagras cilíndricas transparentes en las esquinas
 const hingeGeo=new THREE.CylinderGeometry(0.04,0.04,0.18,16);
-const hingeT=new THREE.Mesh(hingeGeo,glassMat);
+const hingeT=new THREE.Mesh(hingeGeo,crystalClearMat);
 hingeT.position.set(0,1.15,0);
-const hingeB=new THREE.Mesh(hingeGeo,glassMat);
+const hingeB=new THREE.Mesh(hingeGeo,crystalClearMat);
 hingeB.position.set(0,-1.15,0);
 lidPivot.add(hingeT,hingeB);
 
@@ -156,10 +150,10 @@ renderer.domElement.addEventListener('pointerdown',e=>{
 renderer.domElement.addEventListener('pointerup',e=>{
   const dx=Math.abs(e.clientX-pointerDownPos.x);
   const dy=Math.abs(e.clientY-pointerDownPos.y);
-  if(dx<6 && dy<6){ // Es un tap / click limpio
+  if(dx<6 && dy<6){ // Tap / Click limpio
     SFX.tick();
     isOpenCase=!isOpenCase;
-    targetLidAngle=isOpenCase ? -Math.PI*0.72 : 0; // Se abre ~130 grados
+    targetLidAngle=isOpenCase ? -Math.PI*0.72 : 0;
     ctl.autoRotate=false;
   }
 });
@@ -177,7 +171,6 @@ rs();
 
 const t0=performance.now();
 const loop=()=>{
-  // Animación suave de apertura de la tapa
   currentLidAngle+=(targetLidAngle-currentLidAngle)*0.1;
   lidPivot.rotation.y=currentLidAngle;
 
@@ -190,8 +183,6 @@ loop();
 
 meta(r).then(m=>loadTex(r,m,t=>{
   discArtMat.map=t;
-  backInlayMat.map=t;
   discArtMat.needsUpdate=true;
-  backInlayMat.needsUpdate=true;
 }));
-}const au=$('au');let pvUrl='',cur2=-1,isOpen=false;function setPv(on,label,dis){$('pv').innerHTML=(on?pauseI:playI)+'<span>'+label+'</span>';$('pv').disabled=!!dis}function closeEmbed(){$('embed').classList.remove('open');$('embed').innerHTML=''}au.addEventListener('play',()=>setPv(true,'Pausar preview'));const idle=()=>{const r=R[cur2];setPv(false,r&&r.e?'Preview':'Preview 30 s');$('pv').style.setProperty('--p','0%')};au.addEventListener('pause',idle);au.addEventListener('ended',idle);au.addEventListener('timeupdate',()=>$('pv').style.setProperty('--p',(au.currentTime/(au.duration||30)*100)+'%'));$('pv').addEventListener('click',()=>{SFX.tick();const r=R[cur2];if(r&&r.e){const em=$('embed');if(em.classList.contains('open')){closeEmbed();setPv(false,'Preview',false)}else{em.innerHTML=`<iframe allow='autoplay *; encrypted-media *; fullscreen *; clipboard-write' frameborder='0' height='175' style='width:100%;max-width:660px;overflow:hidden;border-radius:10px;' sandbox='allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation' src='${r.e}'></iframe>`;em.classList.add('open');setPv(true,'Ocultar preview',false)}return}if(!pvUrl)return;if(au.paused){if(au.dataset.u!==pvUrl){au.src=pvUrl;au.dataset.u=pvUrl}au.play()}else au.pause()});function fill(k){const r=R[k];$('dt').textContent=r.t;$('ds').textContent=r.s+(r.y?' · '+r.y:'');au.pause();closeEmbed();pvUrl='';if(r.e){setPv(false,'Preview',false)}else{setPv(false,'Buscando preview…',true)}meta(r).then(m=>{if(cur2!==k||r.e)return;if(m.preview){pvUrl=m.preview;setPv(false,'Preview 30 s',false)}else{setPv(false,'Preview no disponible',true)}})}const vt=()=>document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches;function openDetail(k,art){SFX.open();cur2=k;const upd=()=>{fill(k);$('detail').classList.add('open');$('detail').setAttribute('aria-hidden','false');document.body.style.overflow='hidden';isOpen=true;start3D(R[k])};history.pushState({d:k},'','#'+R[k].c);if(vt()){if(art)art.style.viewTransitionName='cover';document.startViewTransition(()=>{if(art)art.style.viewTransitionName='';$('stage').style.viewTransitionName='cover';upd()})}else upd()}function closeDetail(){if(!isOpen)return;SFX.close();isOpen=false;au.pause();closeEmbed();const art=document.querySelector(`.card[data-k='${cur2}'] .art`);const upd=()=>{$('stage').style.viewTransitionName='';stop3D();$('detail').classList.remove('open');$('detail').setAttribute('aria-hidden','true');document.body.style.overflow='';if(art&&vt())art.style.viewTransitionName='cover'};if(vt()){const t=document.startViewTransition(upd);t.finished.finally(()=>{if(art)art.style.viewTransitionName=''})}else upd()}document.querySelectorAll('.card[data-k]').forEach(b=>b.addEventListener('click',()=>openDetail(+b.dataset.k,b.querySelector('.art'))));$('hearBtn').addEventListener('click',()=>openDetail(0,null));$('back').addEventListener('click',()=>{if(history.state&&history.state.d!==undefined)history.back();else closeDetail()});addEventListener('popstate',closeDetail);let cur=null,ix=0;function draw(){const p=cur.p[ix];$('mt').textContent=cur.t;$('ico').innerHTML=ic[p.i];$('pn').textContent=p.n;$('go').href=p.u;$('go').textContent='Abrir en '+p.n;$('next').style.display=cur.p.length>1?'grid':'none';$('dots').innerHTML=cur.p.map((_,k)=>`<i class='${k===ix?'on':''}'></i>`).join('');const s=$('slide');s.classList.remove('swap');void s.offsetWidth;s.classList.add('swap')}function openM(r){SFX.open();cur=r;ix=0;draw();$('modal').classList.add('open')}function closeM(){if($('modal').classList.contains('open'))SFX.close();$('modal').classList.remove('open')}$('pl').addEventListener('click',()=>openM(R[cur2]));$('next').addEventListener('click',()=>{SFX.tick();ix=(ix+1)%cur.p.length;draw()});$('close').addEventListener('click',closeM);$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeM()});const PM=['For You','ZorRiTA','lina','Huske','Alejas','Realidad','Callao'];const crAll=r=>{if(r.ofc)return r.cr;const ar=r.s.includes('Mvler')?'Keiri Blest, Mvler':'Keiri Blest';const pr=['Keiri Blest'].concat(PM.includes(r.t)?['Mvler']:[]).join(', ');const ex=(r.cr||[]).filter(x=>x[0]==='Lanzamiento');return [[ar.includes(',')?'Artistas':'Artista',ar],['Composición y letra',FN],['Producción',pr],['Sello',LB],...(ex.length?ex:(r.y?[['Año',r.y]]:[]))]};const hid=x=>x[0]!=='℗'&&x[0]!=='Distribución';const crRows=r=>crAll(r).filter(hid);function openC(){SFX.open();const r=R[cur2];$('cmt').textContent=r.t;$('crl').innerHTML=crRows(r).map(x=>`<div class='crr'><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');const am=r.p.find(x=>x.i==='apple');$('cra').style.display=am?'inline-flex':'none';if(am)$('cra').href=am.u;$('cmodal').classList.add('open')}function closeC(){if($('cmodal').classList.contains('open'))SFX.close();$('cmodal').classList.remove('open')}$('cr').addEventListener('click',openC);$('cclose').addEventListener('click',closeC);$('cmodal').addEventListener('click',e=>{if(e.target===$('cmodal'))closeC()});function openL(){SFX.open();const r=R[cur2];const tx=LY[r.c];$('lmt').textContent=r.t;const b=$('lyr');b.classList.toggle('empty',!tx);b.textContent=tx||'La letra de esta canción estará disponible pronto.';b.scrollTop=0;$('lmodal').classList.add('open')}function closeL(){if($('lmodal').classList.contains('open'))SFX.close();$('lmodal').classList.remove('open')}$('ly').addEventListener('click',openL);$('lclose').addEventListener('click',closeL);$('lmodal').addEventListener('click',e=>{if(e.target===$('lmodal'))closeL()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('lmodal').classList.contains('open'))closeL();else if($('cmodal').classList.contains('open'))closeC();else if($('modal').classList.contains('open'))closeM();else if(isOpen)$('back').click()}if(e.key==='ArrowRight'&&$('modal').classList.contains('open')){ix=(ix+1)%cur.p.length;draw()}});const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});const PI={Instagram:`<svg class='pico' viewBox='0 0 24 24'><rect x='3' y='3' width='18' height='18' rx='5.5' fill='none' stroke='currentColor' stroke-width='1.8'/><circle cx='12' cy='12' r='4.2' fill='none' stroke='currentColor' stroke-width='1.8'/><circle cx='17.2' cy='6.8' r='1.2' fill='currentColor'/></svg>`,TikTok:`<svg class='pico' viewBox='0 0 24 24'><path d='M13.2 3.5v10.3a3.2 3.2 0 1 1-3.2-3.2M13.2 3.5c.3 2.2 1.8 3.8 4 4' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>`,X:`<svg class='pico' viewBox='0 0 24 24'><path d='M5 4.5h3.6l10.4 15h-3.6z' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linejoin='round'/><path d='M18.6 4.5l-6.1 7M5.4 19.5l6.1-7' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/></svg>`};const PF=[['Instagram','@keiriblest','https://www.instagram.com/keiriblest','#f09433','#bc1888'],['TikTok','@keiriblest','https://www.tiktok.com/@keiriblest','#111111','#2a2a2e'],['X','@BlestKeiri','https://x.com/BlestKeiri','#111111','#2a2a2e']];$('pgrid').innerHTML=PF.map(p=>`<a class='card pcard' href='${p[2]}' target='_blank' rel='noopener' aria-label='${p[0]}'><div class='art' style='--a:${p[3]};--b:${p[4]}'>${PI[p[0]]}<img src='assets/${p[0].toLowerCase()}.jpg' data-fb='https://api.microlink.io/?url=${encodeURIComponent(p[2])}&embed=image.url' alt=''></div><div class='meta'><div><b>${p[0]}</b><span>${p[1]}</span></div><em>↗</em></div></a>`).join('');document.querySelectorAll('.pcard img').forEach(i=>i.addEventListener('error',()=>{if(i.dataset.fb){i.src=i.dataset.fb;delete i.dataset.fb}else i.remove()}));document.querySelectorAll('.reveal').forEach(e=>io.observe(e));$('sfx').dataset.on=SFX.on?'1':'0';$('sfx').addEventListener('click',()=>{$('sfx').dataset.on=SFX.toggle()?'1':'0'});document.addEventListener('click',e=>{const t=e.target.closest('.btn:not(#hearBtn),.row,.soc a,.nav a,.pcard');if(t)SFX.tick()});let lastHover=null;document.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest('.card,.arr,.row,.btn,.fbtn,.theme,.nav a');if(t&&t!==lastHover){lastHover=t;SFX.hover()}else if(!t){lastHover=null}});$('yr').textContent=new Date().getFullYear();</script><script src="cdplayer.js" defer></script><script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a.song');if(!a)return;var n=function(s){return(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'')},k=n(a.dataset.song),c=document.querySelectorAll('#track .card');for(var i=0;i<c.length;i++){var b=c[i].querySelector('.meta b');if(b&&n(b.textContent)===k){e.preventDefault();c[i].click();return}}});</script></body></html>
+}const au=$('au');let pvUrl='',cur2=-1,isOpen=false;function setPv(on,label,dis){$('pv').innerHTML=(on?pauseI:playI)+'<span>'+label+'</span>';$('pv').disabled=!!dis}function closeEmbed(){$('embed').classList.remove('open');$('embed').innerHTML=''}au.addEventListener('play',()=>setPv(true,'Pausar preview'));const idle=()=>{const r=R[cur2];setPv(false,r&&r.e?'Preview':'Preview 30 s');$('pv').style.setProperty('--p','0%')};au.addEventListener('pause',idle);au.addEventListener('ended',idle);au.addEventListener('timeupdate',()=>$('pv').style.setProperty('--p',(au.currentTime/(au.duration||30)*100)+'%'));$('pv').addEventListener('click',e=>{if(!e.target.dataset.fb&&window._cdPlayerActive)return;SFX.tick();const r=R[cur2];if(r&&r.e){const em=$('embed');if(em.classList.contains('open')){closeEmbed();setPv(false,'Preview',false)}else{em.innerHTML=`<iframe allow='autoplay *; encrypted-media *; fullscreen *; clipboard-write' frameborder='0' height='175' style='width:100%;max-width:660px;overflow:hidden;border-radius:10px;' sandbox='allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation' src='${r.e}'></iframe>`;em.classList.add('open');setPv(true,'Ocultar preview',false)}return}if(!pvUrl)return;if(au.paused){if(au.dataset.u!==pvUrl){au.src=pvUrl;au.dataset.u=pvUrl}au.play()}else au.pause()});function fill(k){const r=R[k];$('dt').textContent=r.t;$('ds').textContent=r.s+(r.y?' · '+r.y:'');au.pause();closeEmbed();pvUrl='';if(r.e){setPv(false,'Preview',false)}else{setPv(false,'Buscando preview…',true)}meta(r).then(m=>{if(cur2!==k||r.e)return;if(m.preview){pvUrl=m.preview;setPv(false,'Preview 30 s',false)}else{setPv(false,'Preview no disponible',true)}})}const vt=()=>document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches;function openDetail(k,art){SFX.open();cur2=k;const upd=()=>{fill(k);$('detail').classList.add('open');$('detail').setAttribute('aria-hidden','false');document.body.style.overflow='hidden';isOpen=true;start3D(R[k])};history.pushState({d:k},'','#'+R[k].c);if(vt()){if(art)art.style.viewTransitionName='cover';document.startViewTransition(()=>{if(art)art.style.viewTransitionName='';$('stage').style.viewTransitionName='cover';upd()})}else upd()}function closeDetail(){if(!isOpen)return;SFX.close();isOpen=false;au.pause();closeEmbed();const art=document.querySelector(`.card[data-k='${cur2}'] .art`);const upd=()=>{$('stage').style.viewTransitionName='';stop3D();$('detail').classList.remove('open');$('detail').setAttribute('aria-hidden','true');document.body.style.overflow='';if(art&&vt())art.style.viewTransitionName='cover'};if(vt()){const t=document.startViewTransition(upd);t.finished.finally(()=>{if(art)art.style.viewTransitionName=''})}else upd()}document.querySelectorAll('.card[data-k]').forEach(b=>b.addEventListener('click',()=>openDetail(+b.dataset.k,b.querySelector('.art'))));$('hearBtn').addEventListener('click',()=>openDetail(0,null));$('back').addEventListener('click',()=>{if(history.state&&history.state.d!==undefined)history.back();else closeDetail()});addEventListener('popstate',closeDetail);let cur=null,ix=0;function draw(){const p=cur.p[ix];$('mt').textContent=cur.t;$('ico').innerHTML=ic[p.i];$('pn').textContent=p.n;$('go').href=p.u;$('go').textContent='Abrir en '+p.n;$('next').style.display=cur.p.length>1?'grid':'none';$('dots').innerHTML=cur.p.map((_,k)=>`<i class='${k===ix?'on':''}'></i>`).join('');const s=$('slide');s.classList.remove('swap');void s.offsetWidth;s.classList.add('swap')}function openM(r){SFX.open();cur=r;ix=0;draw();$('modal').classList.add('open')}function closeM(){if($('modal').classList.contains('open'))SFX.close();$('modal').classList.remove('open')}$('pl').addEventListener('click',()=>openM(R[cur2]));$('next').addEventListener('click',()=>{SFX.tick();ix=(ix+1)%cur.p.length;draw()});$('close').addEventListener('click',closeM);$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeM()});const PM=['For You','ZorRiTA','lina','Huske','Alejas','Realidad','Callao'];const crAll=r=>{if(r.ofc)return r.cr;const ar=r.s.includes('Mvler')?'Keiri Blest, Mvler':'Keiri Blest';const pr=['Keiri Blest'].concat(PM.includes(r.t)?['Mvler']:[]).join(', ');const ex=(r.cr||[]).filter(x=>x[0]==='Lanzamiento');return [[ar.includes(',')?'Artistas':'Artista',ar],['Composición y letra',FN],['Producción',pr],['Sello',LB],...(ex.length?ex:(r.y?[['Año',r.y]]:[]))]};const hid=x=>x[0]!=='℗'&&x[0]!=='Distribución';const crRows=r=>crAll(r).filter(hid);function openC(){SFX.open();const r=R[cur2];$('cmt').textContent=r.t;$('crl').innerHTML=crRows(r).map(x=>`<div class='crr'><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');const am=r.p.find(x=>x.i==='apple');$('cra').style.display=am?'inline-flex':'none';if(am)$('cra').href=am.u;$('cmodal').classList.add('open')}function closeC(){if($('cmodal').classList.contains('open'))SFX.close();$('cmodal').classList.remove('open')}$('cr').addEventListener('click',openC);$('cclose').addEventListener('click',closeC);$('cmodal').addEventListener('click',e=>{if(e.target===$('cmodal'))closeC()});function openL(){SFX.open();const r=R[cur2];const tx=LY[r.c];$('lmt').textContent=r.t;const b=$('lyr');b.classList.toggle('empty',!tx);b.textContent=tx||'La letra de esta canción estará disponible pronto.';b.scrollTop=0;$('lmodal').classList.add('open')}function closeL(){if($('lmodal').classList.contains('open'))SFX.close();$('lmodal').classList.remove('open')}$('ly').addEventListener('click',openL);$('lclose').addEventListener('click',closeL);$('lmodal').addEventListener('click',e=>{if(e.target===$('lmodal'))closeL()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('lmodal').classList.contains('open'))closeL();else if($('cmodal').classList.contains('open'))closeC();else if($('modal').classList.contains('open'))closeM();else if(isOpen)$('back').click()}if(e.key==='ArrowRight'&&$('modal').classList.contains('open')){ix=(ix+1)%cur.p.length;draw()}});const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});const PI={Instagram:`<svg class='pico' viewBox='0 0 24 24'><rect x='3' y='3' width='18' height='18' rx='5.5' fill='none' stroke='currentColor' stroke-width='1.8'/><circle cx='12' cy='12' r='4.2' fill='none' stroke='currentColor' stroke-width='1.8'/><circle cx='17.2' cy='6.8' r='1.2' fill='currentColor'/></svg>`,TikTok:`<svg class='pico' viewBox='0 0 24 24'><path d='M13.2 3.5v10.3a3.2 3.2 0 1 1-3.2-3.2M13.2 3.5c.3 2.2 1.8 3.8 4 4' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>`,X:`<svg class='pico' viewBox='0 0 24 24'><path d='M5 4.5h3.6l10.4 15h-3.6z' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linejoin='round'/><path d='M18.6 4.5l-6.1 7M5.4 19.5l6.1-7' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/></svg>`};const PF=[['Instagram','@keiriblest','https://www.instagram.com/keiriblest','#f09433','#bc1888'],['TikTok','@keiriblest','https://www.tiktok.com/@keiriblest','#111111','#2a2a2e'],['X','@BlestKeiri','https://x.com/BlestKeiri','#111111','#2a2a2e']];$('pgrid').innerHTML=PF.map(p=>`<a class='card pcard' href='${p[2]}' target='_blank' rel='noopener' aria-label='${p[0]}'><div class='art' style='--a:${p[3]};--b:${p[4]}'>${PI[p[0]]}<img src='assets/${p[0].toLowerCase()}.jpg' data-fb='https://api.microlink.io/?url=${encodeURIComponent(p[2])}&embed=image.url' alt=''></div><div class='meta'><div><b>${p[0]}</b><span>${p[1]}</span></div><em>↗</em></div></a>`).join('');document.querySelectorAll('.pcard img').forEach(i=>i.addEventListener('error',()=>{if(i.dataset.fb){i.src=i.dataset.fb;delete i.dataset.fb}else i.remove()}));document.querySelectorAll('.reveal').forEach(e=>io.observe(e));$('sfx').dataset.on=SFX.on?'1':'0';$('sfx').addEventListener('click',()=>{$('sfx').dataset.on=SFX.toggle()?'1':'0'});document.addEventListener('click',e=>{const t=e.target.closest('.btn:not(#hearBtn),.row,.soc a,.nav a,.pcard');if(t)SFX.tick()});let lastHover=null;document.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse')return;const t=e.target.closest('.card,.arr,.row,.btn,.fbtn,.theme,.nav a');if(t&&t!==lastHover){lastHover=t;SFX.hover()}else if(!t){lastHover=null}});$('yr').textContent=new Date().getFullYear();</script><script src="cdplayer.js" defer></script><script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a.song');if(!a)return;var n=function(s){return(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'')},k=n(a.dataset.song),c=document.querySelectorAll('#track .card');for(var i=0;i<c.length;i++){var b=c[i].querySelector('.meta b');if(b&&n(b.textContent)===k){e.preventDefault();c[i].click();return}}});</script></body></html>
