@@ -3,8 +3,6 @@ stop3D();
 const host=$('stage');
 renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.25;
 host.appendChild(renderer.domElement);
 
 const scene=new THREE.Scene();
@@ -13,7 +11,7 @@ scene.environment=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironme
 const cam=new THREE.PerspectiveCamera(34,1,.1,50);
 cam.position.set(0,0,5.8);
 
-scene.add(new THREE.AmbientLight(0xffffff,1.1));
+scene.add(new THREE.AmbientLight(0xffffff,1.0));
 const d1=new THREE.DirectionalLight(0xffffff,2.2);
 d1.position.set(3.5,4.5,4.5);
 scene.add(d1);
@@ -21,105 +19,167 @@ const d2=new THREE.DirectionalLight(0xffffff,1.2);
 d2.position.set(-3.5,-2,2.5);
 scene.add(d2);
 
-// Materiales de Cristal Acrílico Completamente Transparente con Brillo y Refracción
-const crystalClearMat=new THREE.MeshPhysicalMaterial({
+// Material Cristal 100% Invisible con solo reflejo especular en los bordes
+const pureGlassMat=new THREE.MeshPhysicalMaterial({
+  color:0xffffff,
+  metalness:0.0,
+  roughness:0.0,
+  transmission:1.0,
+  thickness:0.04,
+  ior:1.5,
+  specularIntensity:0.7,
+  specularColor:0xffffff,
+  transparent:true,
+  opacity:0.25,
+  depthWrite:false,
+  side:THREE.DoubleSide
+});
+
+// Material para nervaduras y marcos finos
+const borderMat=new THREE.MeshPhysicalMaterial({
   color:0xffffff,
   metalness:0.0,
   roughness:0.02,
-  transmission:0.98,
-  thickness:0.25,
-  ior:1.52,
-  specularIntensity:1.0,
+  transmission:1.0,
+  thickness:0.06,
+  ior:1.5,
+  specularIntensity:0.8,
   specularColor:0xffffff,
   transparent:true,
-  opacity:1.0,
-  depthWrite:false
+  opacity:0.35,
+  depthWrite:false,
+  side:THREE.DoubleSide
 });
 
-const clearTrayMat=new THREE.MeshPhysicalMaterial({
-  color:0xffffff,
-  metalness:0.02,
-  roughness:0.04,
-  transmission:0.96,
-  thickness:0.18,
-  ior:1.52,
-  specularIntensity:1.0,
-  specularColor:0xffffff,
-  transparent:true,
-  opacity:1.0,
-  depthWrite:false
-});
-
-const clearHubMat=new THREE.MeshPhysicalMaterial({
-  color:0xffffff,
-  metalness:0.05,
-  roughness:0.06,
-  transmission:0.92,
-  thickness:0.12,
-  ior:1.52,
-  transparent:true,
-  opacity:1.0,
-  depthWrite:false
-});
-
+// Material del CD (Arte de portada de alta fidelidad)
 const discArtMat=new THREE.MeshStandardMaterial({
   map:canvasTex(r),
-  roughness:0.2,
-  metalness:0.5,
-  envMapIntensity:1.4
+  roughness:0.18,
+  metalness:0.45,
+  envMapIntensity:1.5,
+  side:THREE.DoubleSide
 });
 
 // Raíz de la caja completa
 const caseGroup=new THREE.Group();
 
-// 1. Bandeja Trasera (Base acrílica transparente)
-const backGeo=new RoundedBoxGeometry(2.5,2.5,0.08,3,0.06);
-const backMesh=new THREE.Mesh(backGeo,crystalClearMat);
-backMesh.position.z=-0.04;
-caseGroup.add(backMesh);
+// --- 1. BANDEJA TRASERA ---
+const backFrameGroup=new THREE.Group();
 
-// Bandeja central interior totalmente transparente con soporte circular para el CD
-const trayGeo=new RoundedBoxGeometry(2.38,2.38,0.04,2,0.04);
-const trayMesh=new THREE.Mesh(trayGeo,clearTrayMat);
-trayMesh.position.z=0.015;
-caseGroup.add(trayMesh);
+// Base plana trasera
+const backMesh=new THREE.Mesh(new RoundedBoxGeometry(2.52,2.52,0.02,3,0.05),pureGlassMat);
+backMesh.position.z=-0.025;
+backMesh.renderOrder=1;
+backFrameGroup.add(backMesh);
 
-// Hub central transparente (dientes y anillo de sujeción)
-const hubGeo=new THREE.CylinderGeometry(0.24,0.24,0.06,32);
-const hubMesh=new THREE.Mesh(hubGeo,clearHubMat);
-hubMesh.rotation.x=Math.PI/2;
-hubMesh.position.z=0.04;
-caseGroup.add(hubMesh);
+// Marco perimetral fino
+const frameTop=new THREE.Mesh(new RoundedBoxGeometry(2.46,0.08,0.04,2,0.02),borderMat);
+frameTop.position.set(0,1.21,0.005);
+frameTop.renderOrder=2;
+const frameBottom=new THREE.Mesh(new RoundedBoxGeometry(2.46,0.08,0.04,2,0.02),borderMat);
+frameBottom.position.set(0,-1.21,0.005);
+frameBottom.renderOrder=2;
+const frameRight=new THREE.Mesh(new RoundedBoxGeometry(0.08,2.46,0.04,2,0.02),borderMat);
+frameRight.position.set(1.21,0,0.005);
+frameRight.renderOrder=2;
+const frameLeft=new THREE.Mesh(new RoundedBoxGeometry(0.08,2.46,0.04,2,0.02),borderMat);
+frameLeft.position.set(-1.21,0,0.005);
+frameLeft.renderOrder=2;
+backFrameGroup.add(frameTop,frameBottom,frameRight,frameLeft);
 
-// 2. Disco CD Físico 3D
+// Guías en las 4 esquinas
+const makeCornerRib=(x,y)=>{
+  const g=new THREE.Group();
+  const r1=new THREE.Mesh(new RoundedBoxGeometry(0.4,0.03,0.04,2,0.01),borderMat);
+  r1.position.set(x*0.94,y*1.08,0.01);
+  r1.renderOrder=3;
+  const r2=new THREE.Mesh(new RoundedBoxGeometry(0.03,0.4,0.04,2,0.01),borderMat);
+  r2.position.set(x*1.08,y*0.94,0.01);
+  r2.renderOrder=3;
+  g.add(r1,r2);
+  return g;
+};
+backFrameGroup.add(makeCornerRib(1,1),makeCornerRib(-1,1),makeCornerRib(1,-1),makeCornerRib(-1,-1));
+
+// Soporte circular central de sujeción
+const hubRing=new THREE.Mesh(new THREE.TorusGeometry(0.38,0.025,16,32),borderMat);
+hubRing.position.set(0,0,0.01);
+hubRing.renderOrder=3;
+const hubCenterRing=new THREE.Mesh(new THREE.TorusGeometry(0.18,0.02,16,32),borderMat);
+hubCenterRing.position.set(0,0,0.015);
+hubCenterRing.renderOrder=3;
+backFrameGroup.add(hubRing,hubCenterRing);
+
+for(let i=0;i<4;i++){
+  const ang=(i*Math.PI)/2 + Math.PI/4;
+  const pin=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.03,16),borderMat);
+  pin.rotation.x=Math.PI/2;
+  pin.position.set(Math.cos(ang)*0.28,Math.sin(ang)*0.28,0.015);
+  pin.renderOrder=3;
+  backFrameGroup.add(pin);
+}
+
+// Pestaña lateral
+const pullTab=new THREE.Mesh(new RoundedBoxGeometry(0.1,0.35,0.04,2,0.01),borderMat);
+pullTab.position.set(-1.12,0,0.01);
+pullTab.renderOrder=3;
+backFrameGroup.add(pullTab);
+
+caseGroup.add(backFrameGroup);
+
+// --- 2. DISCO CD FÍSICO 3D ---
 const cdGroup=new THREE.Group();
-const cdOuterGeo=new THREE.CylinderGeometry(1.08,1.08,0.02,64);
-const cdInnerGeo=new THREE.CylinderGeometry(0.22,0.22,0.025,32);
-const cdMesh=new THREE.Mesh(cdOuterGeo,[discArtMat,discArtMat,discArtMat]);
-cdMesh.rotation.x=Math.PI/2;
 
-const cdCenterRing=new THREE.Mesh(cdInnerGeo,crystalClearMat);
-cdCenterRing.rotation.x=Math.PI/2;
+const cdOuterMesh=new THREE.Mesh(new THREE.RingGeometry(0.42,1.15,64),discArtMat);
+cdOuterMesh.renderOrder=5;
 
-cdGroup.add(cdMesh,cdCenterRing);
-cdGroup.position.set(0,0,0.04);
+const cdInnerRing=new THREE.Mesh(new THREE.RingGeometry(0.22,0.42,48),pureGlassMat);
+cdInnerRing.position.z=0.001;
+cdInnerRing.renderOrder=6;
+
+const cdBody=new THREE.Mesh(new THREE.CylinderGeometry(1.15,1.15,0.016,64),pureGlassMat);
+cdBody.rotation.x=Math.PI/2;
+cdBody.renderOrder=4;
+
+cdGroup.add(cdOuterMesh,cdInnerRing,cdBody);
+cdGroup.position.set(0,0,0.015);
 caseGroup.add(cdGroup);
 
-// 3. Tapa Delantera Transparente (Hinged Lid)
+// --- 3. TAPA DELANTERA TRANSPARENTE (Hinged Lid) ---
 const lidPivot=new THREE.Group();
-lidPivot.position.set(-1.25,0,0.06);
+lidPivot.position.set(-1.26,0,0.035);
 
-const lidGeo=new RoundedBoxGeometry(2.5,2.5,0.06,3,0.06);
-const lidMesh=new THREE.Mesh(lidGeo,crystalClearMat);
-lidMesh.position.set(1.25,0,0);
-lidPivot.add(lidMesh);
+const lidCover=new THREE.Mesh(new RoundedBoxGeometry(2.52,2.52,0.02,3,0.05),pureGlassMat);
+lidCover.position.set(1.26,0,0);
+lidCover.renderOrder=10;
+lidPivot.add(lidCover);
 
-// Bisagras cilíndricas transparentes en las esquinas
-const hingeGeo=new THREE.CylinderGeometry(0.04,0.04,0.18,16);
-const hingeT=new THREE.Mesh(hingeGeo,crystalClearMat);
-hingeT.position.set(0,1.15,0);
-const hingeB=new THREE.Mesh(hingeGeo,crystalClearMat);
-hingeB.position.set(0,-1.15,0);
+const lidBorderTop=new THREE.Mesh(new RoundedBoxGeometry(2.48,0.035,0.03,2,0.01),borderMat);
+lidBorderTop.position.set(1.26,1.23,0.008);
+lidBorderTop.renderOrder=11;
+const lidBorderBottom=new THREE.Mesh(new RoundedBoxGeometry(2.48,0.035,0.03,2,0.01),borderMat);
+lidBorderBottom.position.set(1.26,-1.23,0.008);
+lidBorderBottom.renderOrder=11;
+const lidBorderRight=new THREE.Mesh(new RoundedBoxGeometry(0.035,2.48,0.03,2,0.01),borderMat);
+lidBorderRight.position.set(2.48,0,0.008);
+lidBorderRight.renderOrder=11;
+lidPivot.add(lidBorderTop,lidBorderBottom,lidBorderRight);
+
+const dotT=new THREE.Mesh(new THREE.TorusGeometry(0.06,0.01,12,24),borderMat);
+dotT.position.set(2.28,1.06,0.008);
+dotT.renderOrder=11;
+const dotB=new THREE.Mesh(new THREE.TorusGeometry(0.06,0.01,12,24),borderMat);
+dotB.position.set(2.28,-1.06,0.008);
+dotB.renderOrder=11;
+lidPivot.add(dotT,dotB);
+
+const hingeGeo=new THREE.CylinderGeometry(0.03,0.03,0.22,16);
+const hingeT=new THREE.Mesh(hingeGeo,borderMat);
+hingeT.position.set(0,1.14,0);
+hingeT.renderOrder=11;
+const hingeB=new THREE.Mesh(hingeGeo,borderMat);
+hingeB.position.set(0,-1.14,0);
+hingeB.renderOrder=11;
 lidPivot.add(hingeT,hingeB);
 
 caseGroup.add(lidPivot);
