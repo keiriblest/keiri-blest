@@ -166,13 +166,14 @@ const find=()=>{
 
 const css=document.createElement('style');
 css.textContent=`.dwrap{position:relative}.stage{z-index:2}
-.cdf{position:absolute;z-index:1;border-radius:50%;pointer-events:none;background-size:cover;background-position:center;-webkit-mask:radial-gradient(circle,transparent 9%,#000 9.6%);mask:radial-gradient(circle,transparent 9%,#000 9.6%);filter:drop-shadow(0 14px 18px rgba(0,0,0,.35))}
+.cdf{position:absolute;z-index:1;border-radius:50%;pointer-events:none;will-change:transform,opacity;background-size:cover;background-position:center;-webkit-mask:radial-gradient(circle,transparent 9%,#000 9.6%);mask:radial-gradient(circle,transparent 9%,#000 9.6%);filter:drop-shadow(0 14px 18px rgba(0,0,0,.35))}
 .cdf::after{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 20deg,rgba(255,255,255,.45),transparent 25%,rgba(255,255,255,.3) 50%,transparent 75%,rgba(255,255,255,.45))}
 .cdp{--h:150;--s:90%;--ac:hsl(var(--h) var(--s) 66%);--ac2:hsl(var(--h) var(--s) 42%);--acd:hsl(var(--h) 22% 10%);--acd2:hsl(var(--h) 22% 5%);display:none;flex-direction:column;align-items:center;gap:18px;width:min(560px,100%);margin-top:40px}.cdp.on{display:flex;animation:up .6s both cubic-bezier(.2,.8,.2,1)}
 .cdp-dev{position:relative;width:100%;display:grid;grid-template-columns:1fr 112px;align-items:center;gap:20px;padding:46px 26px 24px;border-radius:30px;background:var(--card);border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.12),0 2px 12px rgba(0,0,0,.05);transition:box-shadow .6s}
 html[data-theme='dark'] .cdp-dev{box-shadow:0 24px 60px rgba(0,0,0,.55)}
 .cdp.in .cdp-dev{box-shadow:0 24px 60px rgba(0,0,0,.14),0 0 44px hsl(var(--h) var(--s) 55%/.22)}
-.cdp-slot{position:absolute;top:16px;left:26px;right:26px;height:12px;border-radius:10px;background:#050507;box-shadow:inset 0 2px 5px #000;overflow:hidden}
+.cdp-slot{position:absolute;top:16px;left:26px;right:26px;height:12px;border-radius:10px;background:#050507;box-shadow:inset 0 2px 5px #000;overflow:hidden;transition:box-shadow .3s}
+.cdp.ins .cdp-slot{box-shadow:inset 0 2px 5px #000,0 0 22px 4px var(--ac)}
 .cdp-slot::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,var(--ac),transparent);transform:translateX(-100%);opacity:0}
 .cdp.in .cdp-slot::after{opacity:1;animation:cdscan 2.4s ease-in-out infinite}@keyframes cdscan{to{transform:translateX(100%)}}
 .cdp-lcd{display:flex;flex-direction:column;gap:9px;padding:14px 16px;border-radius:16px;background:linear-gradient(var(--acd),var(--acd2));box-shadow:0 0 0 1px hsl(var(--h) var(--s) 60%/.18),inset 0 2px 10px rgba(0,0,0,.5);color:var(--ac);font-family:ui-monospace,Menlo,monospace;min-width:0;transition:background .5s,color .5s}
@@ -271,6 +272,24 @@ function makeCd(e,s){
   return d;
 }
 
+function keys(s,t,rev){
+  const sx=s.w*.55,dx=t.x-s.x,dy=t.y-s.y,K=[];
+  const f=(o,x,y,rx,rz,sc,op,e)=>K.push({offset:o,transform:`translate(${x}px,${y}px) perspective(700px) rotateX(${rx}deg) rotateZ(${rz}deg) scale(${sc})`,opacity:op,easing:e||'ease-in-out'});
+  f(0,0,0,0,0,.9,1,'cubic-bezier(.3,0,.2,1)');
+  f(.10,sx*.4,-10,0,45,.93,1,'cubic-bezier(.2,.6,.3,1)');
+  f(.24,sx,-24,0,130,1,1,'ease-in-out');
+  f(.34,sx,-34,0,170,1,1,'linear');
+  const p0=[sx,-34],p2=[dx,dy-40],p1=[(sx+dx)/2+s.w*.12,(p0[1]+p2[1])/2-40],N=12;
+  for(let i=1;i<=N;i++){
+    const u=i/N,e=u*u*(3-2*u),a=(1-e)*(1-e),b=2*(1-e)*e,c=e*e;
+    f(Math.min(.8,.34+.46*u),a*p0[0]+b*p1[0]+c*p2[0],a*p0[1]+b*p1[1]+c*p2[1],0,170+370*e,1-.2*e,1,'linear');
+  }
+  f(.92,dx,dy-6,70,540,.78,1,'ease-in');
+  f(1,dx,dy+10,86,540,.72,0,'linear');
+  if(!rev)return K;
+  return K.map(k=>({...k,offset:1-k.offset})).reverse();
+}
+
 function setLines(e){
   L.innerHTML='';
   els=e.lines.map(l=>{
@@ -339,14 +358,12 @@ function follow(el,anim){
     const step=()=>{
       if(anim.playState==='finished'||anim.playState==='idle'){res();return}
       const a=el.getBoundingClientRect(),b=detail.getBoundingClientRect();
-      detail.scrollTop+=((a.top+a.height/2)-(b.top+b.height/2))*.14;
+      detail.scrollTop+=((a.top+a.height/2)-(b.top+b.height/2))*.1;
       raf0(step);
     };
     raf0(step);
   });
 }
-
-const tf=(x,y,r,k)=>`translate(${x}px,${y}px) perspective(600px) rotateX(${r}deg) scale(${k})`;
 
 async function grab(){
   cap.obj=null;
@@ -400,16 +417,11 @@ async function start(e){
 
   const s=rel(stage),t=rel(SL);
   cd=makeCd(e,s);
-  const dx=t.x-s.x,dy=t.y-s.y,sx=s.w*.55,el=cd;
+  const el=cd,DUR=3400;
 
-  const a=el.animate([
-    {transform:tf(0,0,0,.9),opacity:1,offset:0},
-    {transform:tf(sx,0,0,.95),opacity:1,offset:.22},
-    {transform:tf(sx,0,0,.95),opacity:1,offset:.32},
-    {transform:tf(dx,dy-40,0,.8),opacity:1,offset:.72},
-    {transform:tf(dx,dy,82,.8),opacity:1,offset:.92},
-    {transform:tf(dx,dy,82,.8),opacity:0,offset:1}
-  ],{duration:2800,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'});
+  const a=el.animate(keys(s,t,false),{duration:DUR,easing:'linear',fill:'forwards'});
+  setTimeout(()=>P.classList.add('ins'),DUR*.86);
+  setTimeout(()=>P.classList.remove('ins'),DUR*.86+700);
 
   await Promise.all([a.finished.catch(()=>{}),follow(el,a),ok?drive(a,SWIN):0]);
   if(!cur)return;
@@ -437,7 +449,8 @@ async function exit(){
   run(false);
   const e=cur;
   P.classList.remove('in');
-  P.classList.add('leaving');
+  P.classList.add('leaving','ins');
+  setTimeout(()=>P.classList.remove('ins'),800);
   cap.tk++;
   if(cap.on){cap.p=0;restore();cap.on=false;}
 
@@ -459,16 +472,9 @@ async function exit(){
 
   const s=rel(stage),t=rel(SL);
   cd=makeCd(e,s);
-  const dx=t.x-s.x,dy=t.y-s.y,sx=s.w*.55,el=cd;
+  const el=cd;
 
-  const a=el.animate([
-    {transform:tf(dx,dy,82,.8),opacity:0,offset:0},
-    {transform:tf(dx,dy,82,.8),opacity:1,offset:.1},
-    {transform:tf(dx,dy-40,0,.8),opacity:1,offset:.32},
-    {transform:tf(sx,0,0,.95),opacity:1,offset:.72},
-    {transform:tf(sx,0,0,.95),opacity:1,offset:.8},
-    {transform:tf(0,0,0,.9),opacity:1,offset:1}
-  ],{duration:2600,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'});
+  const a=el.animate(keys(s,t,true),{duration:3000,easing:'linear',fill:'forwards'});
 
   await Promise.all([a.finished.catch(()=>{}),follow(el,a),ok?drive(a,SWOUT):0]);
 
@@ -496,7 +502,7 @@ function quick(){
   cap.swx=0;
   cap.swr=0;
   stage.style.pointerEvents='';
-  P.classList.remove('on','in','run','leaving');
+  P.classList.remove('on','in','run','leaving','ins');
   cur=null;
   busy=false;
 }
