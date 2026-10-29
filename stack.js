@@ -4,6 +4,10 @@ if(!track||!vp)return;
 
 const ROW=104;
 
+const pc=document.createElement('link');
+pc.rel='preconnect';pc.href='https://wsrv.nl';pc.crossOrigin='';
+document.head.appendChild(pc);
+
 const css=document.createElement('style');
 css.textContent=`.stk{position:relative;margin-top:10px;background:#0a0a0b;border-radius:34px;clip-path:inset(0 round 34px)}
 .stk-st{position:sticky;top:0;height:100vh;height:100dvh;--w:min(84vw,420px);perspective:900px;-webkit-perspective:900px;perspective-origin:50% 50%;overflow:hidden}
@@ -24,24 +28,54 @@ css.textContent=`.stk{position:relative;margin-top:10px;background:#0a0a0b;borde
 document.head.appendChild(css);
 
 let wrap=null,st=null,rows=[],sig='',timer=0,raf=0,stageH=innerHeight,H=0,paused=false,kick=0,lastS=NaN,W=420;
-const colors=new Map();
 
-function avg(src,cb){
-  if(colors.has(src)){cb(colors.get(src));return}
-  const im=new Image();
-  im.crossOrigin='anonymous';
-  im.onload=()=>{
-    try{
-      const c=document.createElement('canvas');c.width=c.height=8;
-      const x=c.getContext('2d');x.drawImage(im,0,0,8,8);
-      const d=x.getImageData(0,0,8,8).data;
-      let r=0,g=0,b=0,n=0;
-      for(let i=0;i<d.length;i+=4){r+=d[i];g+=d[i+1];b+=d[i+2];n++}
-      const v=`rgb(${r/n*.65|0},${g/n*.65|0},${b/n*.65|0})`;
-      colors.set(src,v);cb(v);
-    }catch(_){}
+const abs=u=>{try{return new URL(u,location.href).href}catch(_){return u}};
+const thumb=u=>{const a=abs(u);return /^https?:/i.test(a)&&!/^https?:\/\/(localhost|127\.|192\.168\.)/i.test(a)?'https://wsrv.nl/?url='+encodeURIComponent(a)+'&w=520&h=520&fit=cover&output=webp&q=78':u};
+
+let active=0;
+const queue=[];
+function paint(r,u,im){
+  r.el.style.setProperty('--img','url("'+u+'")');
+  try{
+    const c=document.createElement('canvas');c.width=c.height=8;
+    const x=c.getContext('2d');x.drawImage(im,0,0,8,8);
+    const d=x.getImageData(0,0,8,8).data;
+    let R=0,G=0,B=0,n=0;
+    for(let i=0;i<d.length;i+=4){R+=d[i];G+=d[i+1];B+=d[i+2];n++}
+    r.el.style.setProperty('--c','rgb('+(R/n*.65|0)+','+(G/n*.65|0)+','+(B/n*.65|0)+')');
+  }catch(_){}
+}
+function run(r){
+  active++;
+  const done=()=>{active--;pump()};
+  const t=thumb(r.src);
+  const a=new Image();
+  a.decoding='async';
+  if(t!==r.src)a.crossOrigin='anonymous';
+  a.onload=()=>{paint(r,t,a);done()};
+  a.onerror=()=>{
+    if(t===r.src){done();return}
+    const b=new Image();
+    b.decoding='async';
+    b.onload=()=>{paint(r,r.src,b);done()};
+    b.onerror=done;
+    b.src=r.src;
   };
-  im.src=src;
+  a.src=t;
+}
+function pump(){
+  while(active<5&&queue.length)run(queue.shift());
+}
+function want(r,hi){
+  if(!r.src)return;
+  if(r.state===2)return;
+  if(r.state===1){
+    if(hi){const k=queue.indexOf(r);if(k>0){queue.splice(k,1);queue.unshift(r)}}
+    return;
+  }
+  r.state=1;
+  if(hi)queue.unshift(r);else queue.push(r);
+  pump();
 }
 
 function frame(){
@@ -55,11 +89,8 @@ function frame(){
   for(const r of rows){
     const dy=dy0+r.i*ROW-s,ad=dy<0?-dy:dy,vis=ad<lim;
     if(vis!==r.vis){r.vis=vis;r.el.classList.toggle('off',!vis)}
+    if(!r.hi&&ad<load){r.hi=true;want(r,true)}
     if(!vis)continue;
-    if(!r.loaded&&ad<load){
-      r.loaded=true;
-      if(r.src)r.el.style.setProperty('--img','url("'+r.src+'")');
-    }
     const y=Math.round(dy*10)/10;
     if(y!==r.y){r.y=y;r.el.style.transform='translate3d(0,'+y+'px,0)'}
     const z=1000-Math.round(ad);
@@ -87,6 +118,7 @@ function build(){
   if(wrap&&s===sig)return;
   sig=s;
   if(wrap)wrap.remove();
+  queue.length=0;
   wrap=document.createElement('div');
   wrap.className='stk';
   st=document.createElement('div');
@@ -94,7 +126,7 @@ function build(){
   wrap.appendChild(st);
   rows=cards.map((card,i)=>{
     const art=card.querySelector('.art'),img=art&&art.querySelector('img'),t=card.querySelector('.meta b'),sp=card.querySelector('.meta span'),y=card.querySelector('.meta em');
-    const src=img&&(img.currentSrc||img.src)||'';
+    const src=img?(img.dataset.orig||img.currentSrc||img.src):'';
     const el=document.createElement('div');
     el.className='stk-i off';
     el.setAttribute('role','button');
@@ -111,12 +143,22 @@ function build(){
     const open=()=>card.click();
     el.addEventListener('click',open);
     el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}});
-    if(src)avg(src,c=>el.style.setProperty('--c',c));
     st.appendChild(el);
-    return {el,i,src,vis:null,loaded:false,y:NaN,z:NaN};
+    if(img&&src&&!img.dataset.orig){
+      img.dataset.orig=src;
+      const th=thumb(src);
+      if(th!==src){
+        img.loading='lazy';
+        img.onerror=()=>{img.onerror=null;img.src=src};
+        img.src=th;
+      }
+    }
+    return {el,i,src,state:0,hi:false,vis:null,y:NaN,z:NaN};
   });
   vp.after(wrap);
   document.documentElement.classList.add('stk-on');
+  rows.slice(0,8).forEach(r=>want(r,false));
+  rows.slice(8).forEach(r=>want(r,false));
   layout();
 }
 
