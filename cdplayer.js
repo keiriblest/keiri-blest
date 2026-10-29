@@ -273,21 +273,18 @@ function makeCd(e,s){
 }
 
 function keys(s,t,rev){
-  const sx=s.w*.55,dx=t.x-s.x,dy=t.y-s.y,K=[];
-  const f=(o,x,y,rx,rz,sc,op,e)=>K.push({offset:o,transform:`translate(${x}px,${y}px) perspective(700px) rotateX(${rx}deg) rotateZ(${rz}deg) scale(${sc})`,opacity:op,easing:e||'ease-in-out'});
-  f(0,0,0,0,0,.9,1,'cubic-bezier(.3,0,.2,1)');
-  f(.10,sx*.4,-10,0,45,.93,1,'cubic-bezier(.2,.6,.3,1)');
-  f(.24,sx,-24,0,130,1,1,'ease-in-out');
-  f(.34,sx,-34,0,170,1,1,'linear');
-  const p0=[sx,-34],p2=[dx,dy-40],p1=[(sx+dx)/2+s.w*.12,(p0[1]+p2[1])/2-40],N=12;
-  for(let i=1;i<=N;i++){
-    const u=i/N,e=u*u*(3-2*u),a=(1-e)*(1-e),b=2*(1-e)*e,c=e*e;
-    f(Math.min(.8,.34+.46*u),a*p0[0]+b*p1[0]+c*p2[0],a*p0[1]+b*p1[1]+c*p2[1],0,170+370*e,1-.2*e,1,'linear');
-  }
-  f(.92,dx,dy-6,70,540,.78,1,'ease-in');
-  f(1,dx,dy+10,86,540,.72,0,'linear');
+  const dx=t.x-s.x,dy=t.y-s.y,K=[];
+  const f=(o,x,y,rx,sc,op,e)=>K.push({offset:o,transform:`translate(${x}px,${y}px) perspective(700px) rotateX(${rx}deg) scale(${sc})`,opacity:op,easing:e||'ease-in-out'});
+  f(0,0,0,0,.9,1,'ease-in');
+  f(.2,0,0,0,.85,0,'linear');
+  f(.3,dx,dy-40,0,.8,0,'ease-out');
+  f(.45,dx,dy-40,0,.8,1,'ease-in-out');
+  f(.6,dx,dy-40,0,.8,1,'ease-in-out');
+  f(.75,dx,dy-6,70,.78,1,'ease-in');
+  f(.9,dx,dy+10,86,.72,0,'linear');
+  f(1,dx,dy+10,86,.72,0,'linear');
   if(!rev)return K;
-  return K.map(k=>({...k,offset:1-k.offset})).reverse();
+  return K.map(k=>({...k,offset:1-k.offset,easing:'ease-in-out'})).reverse();
 }
 
 function setLines(e){
@@ -417,11 +414,11 @@ async function start(e){
 
   const s=rel(stage),t=rel(SL);
   cd=makeCd(e,s);
-  const el=cd,DUR=3400;
+  const el=cd,DUR=2600;
 
   const a=el.animate(keys(s,t,false),{duration:DUR,easing:'linear',fill:'forwards'});
-  setTimeout(()=>P.classList.add('ins'),DUR*.86);
-  setTimeout(()=>P.classList.remove('ins'),DUR*.86+700);
+  setTimeout(()=>P.classList.add('ins'),DUR*.72);
+  setTimeout(()=>P.classList.remove('ins'),DUR*.72+700);
 
   await Promise.all([a.finished.catch(()=>{}),follow(el,a),ok?drive(a,SWIN):0]);
   if(!cur)return;
@@ -474,7 +471,7 @@ async function exit(){
   cd=makeCd(e,s);
   const el=cd;
 
-  const a=el.animate(keys(s,t,true),{duration:3000,easing:'linear',fill:'forwards'});
+  const a=el.animate(keys(s,t,true),{duration:2600,easing:'linear',fill:'forwards'});
 
   await Promise.all([a.finished.catch(()=>{}),follow(el,a),ok?drive(a,SWOUT):0]);
 
