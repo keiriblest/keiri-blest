@@ -3,9 +3,10 @@ const track=document.getElementById('track'),vp=document.getElementById('vp'),de
 if(!track||!vp)return;
 
 const css=document.createElement('style');
-css.textContent=`.stk{position:relative;z-index:0;isolation:isolate;background:#0a0a0b;border-radius:34px;padding:70px 0 90px;margin-top:10px}
-.stk.hide{display:none}
-.stk.pre{visibility:hidden}
+css.textContent=`.stk{position:relative;z-index:0;isolation:isolate;background:#0a0a0b;border-radius:34px;padding:70px 0 90px;margin-top:10px;transition:opacity .25s}
+.stk.hide{visibility:hidden}
+.stk.hide .stk-pl{display:none}
+.stk.pre{opacity:0;pointer-events:none;transition:none}
 .stk-i{position:relative;display:block;width:min(86%,480px);height:120px;margin:0 auto;padding:0;background:none;border:0;--c:#2c2c30;-webkit-tap-highlight-color:transparent;cursor:pointer;color:#fff;contain:layout style}
 .stk-pl{position:absolute;left:0;right:0;bottom:34px;aspect-ratio:1;background-size:cover;background-position:center;border-radius:6px 6px 0 0;transform-origin:50% 100%;transform:perspective(900px) rotateX(80deg);box-shadow:0 12px 24px rgba(0,0,0,.45)}
 .stk-i.up .stk-pl{bottom:auto;top:34px;transform-origin:50% 0;border-radius:0 0 6px 6px;transform:perspective(900px) rotateX(-80deg)}
@@ -17,7 +18,7 @@ css.textContent=`.stk{position:relative;z-index:0;isolation:isolate;background:#
 .stk-on #vp,.stk-on .head .arrows{display:none}`;
 document.head.appendChild(css);
 
-let box=null,rows=[],sig='',raf=0,timer=0,hidden=false,lastY=-1,boxTop=0,vh=document.documentElement.clientHeight||innerHeight;
+let box=null,rows=[],sig='',raf=0,timer=0,hidden=false,lastY=-1,boxTop=0,vh=document.documentElement.clientHeight||innerHeight,closeId=0;
 const colors=new Map();
 
 function avg(src,cb){
@@ -103,24 +104,36 @@ function build(){
 function close(){
   hidden=false;
   if(!box)return;
+  const id=++closeId;
   box.classList.add('pre');
   box.classList.remove('hide');
   rows.forEach(r=>{r.rx=999;r.z=-1;r.near=null});
   measureNow();
-  requestAnimationFrame(()=>{
-    measureNow();
-    requestAnimationFrame(()=>{
+  let last=scrollY,still=0,n=0;
+  const step=()=>{
+    if(id!==closeId||hidden)return;
+    lastY=-1;
+    upd();
+    const y=scrollY;
+    still=(y===last)?still+1:0;
+    last=y;
+    n++;
+    if(still>=10||n>100){
       measureNow();
       if(box)box.classList.remove('pre');
-    });
-  });
+      return;
+    }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(build,150)}).observe(track,{childList:true});
 if(detail)new MutationObserver(()=>{
   if(detail.classList.contains('open')){
     hidden=true;
-    if(box)box.classList.add('hide');
+    closeId++;
+    if(box){box.classList.remove('pre');box.classList.add('hide')}
   }else if(hidden){
     close();
   }
