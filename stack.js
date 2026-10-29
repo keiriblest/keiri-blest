@@ -9,7 +9,7 @@ pc.rel='preconnect';pc.href='https://wsrv.nl';pc.crossOrigin='';
 document.head.appendChild(pc);
 
 const css=document.createElement('style');
-css.textContent=`.stk{position:relative;margin-top:10px;background:#0a0a0b;border-radius:34px;clip-path:inset(0 round 34px)}
+css.textContent=`.stk{position:relative;margin:10px 0 -50px;background:#0a0a0b;border-radius:34px;clip-path:inset(0 round 34px)}
 .stk-st{position:sticky;top:0;height:100vh;height:100dvh;--w:min(84vw,420px);perspective:900px;-webkit-perspective:900px;perspective-origin:50% 50%;overflow:hidden}
 .stk-i{position:absolute;left:50%;top:50%;width:var(--w);height:34px;margin:-17px 0 0 calc(var(--w)/-2);transform-style:preserve-3d;-webkit-transform-style:preserve-3d;--c:#2c2c30;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;transform:translate3d(0,3000px,0)}
 .stk-i.off{visibility:hidden}
@@ -103,7 +103,7 @@ function layout(){
   if(!wrap)return;
   stageH=st.clientHeight||innerHeight;
   W=rows[0]?rows[0].el.offsetWidth||420:420;
-  const sMax=Math.max(0,(rows.length-1)*ROW+stageH*.2+120);
+  const sMax=Math.max(0,(rows.length-1)*ROW-stageH*.68);
   H=stageH+sMax;
   wrap.style.height=H+'px';
   lastS=NaN;
