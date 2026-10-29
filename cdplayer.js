@@ -128,26 +128,6 @@ const release=()=>{
   }
 };
 
-function drive(a,tbl){
-  return new Promise(res=>{
-    const step=()=>{
-      if(a.playState==='finished'||a.playState==='idle'){
-        cap.swx=0;cap.swr=0;res();return;
-      }
-      const k=Math.min(1,(a.currentTime||0)/a.effect.getTiming().duration);
-      let i=1;
-      while(i<tbl.length-1&&tbl[i][0]<k)i++;
-      const A=tbl[i-1],B=tbl[i],u=(k-A[0])/(B[0]-A[0]||1),e=u*u*(3-2*u);
-      cap.swx=A[1]+(B[1]-A[1])*e;
-      cap.swr=A[2]+(B[2]-A[2])*e;
-      raf0(step);
-    };
-    raf0(step);
-  });
-}
-
-const SWIN=[[0,0,0],[.12,-16,-12],[.22,-30,-18],[.32,-30,-18],[.45,-10,-6],[.58,18,10],[.72,-6,-9],[.85,8,-3],[1,0,0]];
-
 let DB={};
 fetch('letras-sync.json',{cache:'no-store'}).then(r=>r.ok?r.json():{}).then(d=>{DB=d||{}}).catch(()=>{});
 
@@ -274,13 +254,12 @@ function makeCd(e,s){
 function keysIn(s,t){
   const dx=t.x-s.x,dy=t.y-s.y,K=[];
   const f=(o,x,y,rx,sc,op,e)=>K.push({offset:o,transform:`translate(${x}px,${y}px) perspective(700px) rotateX(${rx}deg) scale(${sc})`,opacity:op,easing:e||'ease-in-out'});
-  f(0,0,0,0,.9,1,'ease-in');
-  f(.2,0,0,0,.85,0,'linear');
+  f(0,dx,dy-40,0,.8,0,'linear');
   f(.3,dx,dy-40,0,.8,0,'ease-out');
   f(.45,dx,dy-40,0,.8,1,'ease-in-out');
   f(.6,dx,dy-40,0,.8,1,'ease-in-out');
-  f(.75,dx,dy-6,70,.78,1,'ease-in');
-  f(.9,dx,dy+10,86,.72,0,'linear');
+  f(.78,dx,dy-6,70,.78,1,'ease-in');
+  f(.95,dx,dy+10,86,.72,0,'linear');
   f(1,dx,dy+10,86,.72,0,'linear');
   return K;
 }
@@ -415,6 +394,7 @@ async function start(e){
       await tween(1,500);
       await animateLid(-Math.PI*0.72, 600);
       if(cap.cd) cap.cd.visible=false;
+      await new Promise(r=>setTimeout(r,300));
     }
   }catch(_){ok=false;cap.on=false;cap.p=0;}
 
@@ -423,13 +403,13 @@ async function start(e){
 
   const s=rel(stage),t=rel(SL);
   cd=makeCd(e,s);
-  const el=cd,DUR=2600;
+  const el=cd,DUR=2400;
 
   const a=el.animate(keysIn(s,t),{duration:DUR,easing:'linear',fill:'forwards'});
-  setTimeout(()=>P.classList.add('ins'),DUR*.72);
-  setTimeout(()=>P.classList.remove('ins'),DUR*.72+700);
+  setTimeout(()=>P.classList.add('ins'),DUR*.76);
+  setTimeout(()=>P.classList.remove('ins'),DUR*.76+700);
 
-  await Promise.all([a.finished.catch(()=>{}),follow(el,a),ok?drive(a,SWIN):0]);
+  await Promise.all([a.finished.catch(()=>{}),follow(el,a)]);
   if(!cur)return;
 
   el.remove();
