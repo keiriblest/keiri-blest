@@ -39,7 +39,7 @@ function avg(src,cb){
 
 function upd(){
   raf=0;
-  if(hidden||!box)return;
+  if(!box)return;
   const y=scrollY,top=box.getBoundingClientRect().top+y;
   if(y===lastY&&top===boxTop)return;
   lastY=y;boxTop=top;
@@ -57,11 +57,14 @@ function upd(){
 }
 const sched=()=>{if(!raf)raf=requestAnimationFrame(upd)};
 
-function measure(){
+function measureNow(){
   vh=innerHeight;
   rows.forEach(r=>{r.rel=r.el.offsetTop+r.el.offsetHeight/2});
   lastY=-1;
-  sched();
+  upd();
+}
+function measure(){
+  measureNow();
 }
 
 function build(){
@@ -104,9 +107,14 @@ if(detail)new MutationObserver(()=>{
     if(box)box.classList.add('hide');
   }else if(hidden){
     hidden=false;
-    if(box)box.classList.remove('hide');
-    lastY=-1;
-    sched();
+    measureNow();
+    requestAnimationFrame(()=>{
+      measureNow();
+      requestAnimationFrame(()=>{
+        measureNow();
+        if(box)box.classList.remove('hide');
+      });
+    });
   }
 }).observe(detail,{attributes:true,attributeFilter:['class']});
 addEventListener('scroll',sched,{passive:true});
