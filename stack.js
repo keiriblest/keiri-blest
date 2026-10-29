@@ -1,7 +1,6 @@
 (()=>{
 const track=document.getElementById('track'),vp=document.getElementById('vp'),detail=document.getElementById('detail');
 if(!track||!vp)return;
-const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const css=document.createElement('style');
 css.textContent=`.stk{position:relative;z-index:0;isolation:isolate;background:#0a0a0b;border-radius:34px;padding:70px 0 90px;margin-top:10px}
@@ -12,16 +11,12 @@ css.textContent=`.stk{position:relative;z-index:0;isolation:isolate;background:#
 .stk-lb{position:absolute;left:0;right:0;bottom:0;height:34px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 10px;background:var(--c);color:#fff;font-size:.9rem;white-space:nowrap;overflow:hidden;border-radius:0 0 6px 6px;text-shadow:0 1px 2px rgba(0,0,0,.35)}
 .stk-i.up .stk-lb{top:0;bottom:auto;border-radius:6px 6px 0 0}
 .stk-lb b{font-weight:700}.stk-lb i{font-style:normal;opacity:.8;overflow:hidden;text-overflow:ellipsis}
-@media(hover:hover){.stk:not(.stk-go) .stk-i:hover .stk-lb{filter:brightness(1.25)}}
+@media(hover:hover){.stk-i:hover .stk-lb{filter:brightness(1.25)}}
 .stk-i:focus-visible{outline:2px solid #fff;outline-offset:4px}
-.stk-i.sel .stk-pl,.stk-i.ret .stk-pl{transition:transform .55s cubic-bezier(.2,.8,.2,1),box-shadow .55s}
-.stk-i.sel .stk-pl{transform-origin:50% 100%!important;transform:perspective(900px) rotateX(0deg) translateY(-12px) scale(1.06)!important;box-shadow:0 40px 80px rgba(0,0,0,.7)}
-.stk-i,.stk-i .stk-lb{transition:opacity .35s}
-.stk-go .stk-i:not(.sel){opacity:0;pointer-events:none}
 .stk-on #vp,.stk-on .head .arrows{display:none}`;
 document.head.appendChild(css);
 
-let box=null,rows=[],sig='',raf=0,timer=0,lock=false,hidden=false,lastY=-1,boxTop=0,vh=innerHeight;
+let box=null,rows=[],sig='',raf=0,timer=0,hidden=false,lastY=-1,boxTop=0,vh=innerHeight;
 const colors=new Map();
 
 function avg(src,cb){
@@ -44,7 +39,7 @@ function avg(src,cb){
 
 function upd(){
   raf=0;
-  if(lock||hidden||!box)return;
+  if(hidden||!box)return;
   const y=scrollY,top=box.getBoundingClientRect().top+y;
   if(y===lastY&&top===boxTop)return;
   lastY=y;boxTop=top;
@@ -67,35 +62,6 @@ function measure(){
   rows.forEach(r=>{r.rel=r.el.offsetTop+r.el.offsetHeight/2});
   lastY=-1;
   sched();
-}
-
-function unlock(){
-  lock=false;
-  hidden=false;
-  if(!box)return;
-  box.classList.remove('stk-go','hide');
-  rows.forEach(r=>{
-    if(r.el.classList.contains('sel')){
-      r.el.classList.remove('sel');
-      r.el.classList.add('ret');
-      setTimeout(()=>r.el.classList.remove('ret'),650);
-    }
-    r.z=-1;
-  });
-  lastY=-1;
-  sched();
-}
-
-function pick(r,card){
-  if(lock)return;
-  lock=true;
-  r.el.classList.add('sel');
-  r.el.style.zIndex=300;
-  box.classList.add('stk-go');
-  setTimeout(()=>{
-    card.click();
-    setTimeout(()=>{if(lock&&!hidden&&!(detail&&detail.classList.contains('open')))unlock()},1000);
-  },RM?0:520);
 }
 
 function build(){
@@ -121,11 +87,10 @@ function build(){
     const pl=row.querySelector('.stk-pl');
     if(src)pl.style.backgroundImage='url("'+src+'")';
     else if(art)pl.style.backgroundImage=getComputedStyle(art).backgroundImage;
-    const r={el:row,pl,rel:0,rx:999,up:false,z:-1};
-    row.addEventListener('click',()=>pick(r,card));
+    row.addEventListener('click',()=>card.click());
     if(src)avg(src,c=>row.style.setProperty('--c',c));
     box.appendChild(row);
-    return r;
+    return {el:row,pl,rel:0,rx:999,up:false,z:-1};
   });
   vp.after(box);
   document.documentElement.classList.add('stk-on');
@@ -134,9 +99,15 @@ function build(){
 
 new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(build,150)}).observe(track,{childList:true});
 if(detail)new MutationObserver(()=>{
-  const open=detail.classList.contains('open');
-  if(open){hidden=true;lock=true;if(box)box.classList.add('hide')}
-  else if(hidden||lock)unlock();
+  if(detail.classList.contains('open')){
+    hidden=true;
+    if(box)box.classList.add('hide');
+  }else if(hidden){
+    hidden=false;
+    if(box)box.classList.remove('hide');
+    lastY=-1;
+    sched();
+  }
 }).observe(detail,{attributes:true,attributeFilter:['class']});
 addEventListener('scroll',sched,{passive:true});
 addEventListener('resize',measure);
